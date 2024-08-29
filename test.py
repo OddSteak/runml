@@ -35,16 +35,10 @@ passes = 0
 total = 0
 
 test_dir = "tests"
-source_file = "runml.c"
+binary = "builds/runml"
 
-if not os.path.isfile(source_file) or not os.path.isdir(test_dir):
-    print("TEST error: runml.c or test dir missing")
-    exit()
-
-makeout = subprocess.run(['make'], capture_output=True, text=True)
-if makeout.stderr:
-    print("make failed:")
-    print(makeout.stderr)
+if not os.path.isfile(binary) or not os.path.isdir(test_dir):
+    print("TEST error: builds/runml or test dir missing")
     exit()
 
 testfiles = [f for f in os.listdir(test_dir)
