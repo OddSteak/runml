@@ -1,5 +1,5 @@
-CC=gcc
-CFLAGS=-Wall -W -pedantic -ansi -std=c11
+CC=cc
+CFLAGS=-Wall -W -std=c11
 
 all: runml
 
