@@ -14,4 +14,4 @@ test: builds/runml
 	python test.py
 	@echo "Completed tests"
 
-.PHONY: all test
+.PHONY: all test runml
