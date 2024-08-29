@@ -60,7 +60,7 @@ if len(testfiles) != len(expout):
     exit()
 
 for i in range(len(expout)):
-    if expout[i].split(".")[:-1] != testfiles[i].split(".") \
+    if '.'.join(expout[i].split(".")[:-1]) != testfiles[i] \
             or expout[i].split(".")[-1] != "exp":
         print("TEST error: name mismatch")
         print("name samples as sample0{num}.ml and out files as \

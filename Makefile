@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-Wall -W -pedantic -ansi -std=c11
 
-all: test
+all: runml
 
 runml: builds/runml
 
