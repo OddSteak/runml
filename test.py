@@ -4,7 +4,14 @@ import subprocess
 
 def run_file(mlfile, expfile):
     passed = False
-    result = subprocess.run(['builds/runml', mlfile], capture_output=True,
+    command = ['builds/runml', mlfile]
+
+    args = []
+    if os.path.isfile(mlfile + '.args'):
+        with open(mlfile + '.args', 'r') as argfile:
+            args = argfile.read().strip().split(' ')
+
+    result = subprocess.run(command + args, capture_output=True,
                             text=True)
     lines = [line for line in result.stdout.splitlines()
              if not line.startswith('@')]
@@ -41,11 +48,11 @@ if not os.path.isfile(binary) or not os.path.isdir(test_dir):
     print("TEST error: builds/runml or test dir missing")
     exit()
 
-testfiles = [f for f in os.listdir(test_dir)
+testfiles = [os.path.join(test_dir, f) for f in os.listdir(test_dir)
              if os.path.isfile(os.path.join(test_dir, f))
              and f.split(".")[-1] == "ml"]
 
-expout = [f for f in os.listdir(test_dir)
+expout = [os.path.join(test_dir, f) for f in os.listdir(test_dir)
           if os.path.isfile(os.path.join(test_dir, f))
           and f.split(".")[-1] == "exp"]
 
