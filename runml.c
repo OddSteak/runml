@@ -1,21 +1,32 @@
+//  CITS2002 Project 1 2024
+//  Student1:   STUDENT-24000581   NAME- Mohammad Ashraf Qureshi
+//  Student2:   STUDENT-23895849   NAME-Baasil Sidiqui
+//  Platform:   Linux
+
+//Importing all the the libraries we need 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+//maximum Identifiers a the program will have is 50 
+#define MAX_ID 50
+
+//defines the stucture of fn which hold the name and the number of aruments a function has will use these to process funvctions
 struct fn {
     char* name;
     int args;
 };
-
-struct fn fn_list[50];
+//fn_list is a list of the stuctures for function so we can track them, num_fns is used to track the number of function we have in the program 
+struct fn fn_list[MAX_ID];
 int num_fns = 0;
-
-char* vars[50];
+// var is a list a list of unique identifiers which are variables in the program
+char* vars[MAX_ID];
 int num_vars = 0;
-
+// num_vars holds the number of variable that are in the function
 int proc_assignment(char* line, char *var_name, char *var_val);
-void strip(char* line, char* out);
 
+void strip(char* line, char* out);
+ 
 int main(int argc, char* argv[])
 {
     if (argc == 1) {
@@ -64,7 +75,7 @@ void proc_statement(char* statement)
 
 void process_fn(char* block)
 {
-    char* local_ids[50];
+    char* local_ids[MAX_ID];
 }
 
 void strip(char* line, char* out)
