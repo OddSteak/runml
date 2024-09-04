@@ -20,79 +20,88 @@ struct fn {
 struct fn fn_list[MAX_ID];
 int num_fns = 0;
 // var is a list a list of unique identifiers which are variables in the program
-char* vars[MAX_ID];
+char* vars[MAX_ID]; 
 int num_vars = 0;
-// num_vars holds the number of variable that are in the function
-int proc_assignment(char* line, char *var_name, char *var_val);
+// num_vars keeps a count of the number of variables
 
-void strip(char* line, char* out);
- 
-int main(int argc, char* argv[])
-{
-    if (argc == 1) {
-        printf("No files provided");
-        exit(EXIT_FAILURE);
-    }
-
-    FILE* inputfile = fopen(argv[1], "r");
-    char line[1000];
-    while (fgets(line, 1000, inputfile) != NULL) {
-        char var_name[100];
-        char var_val[100];
-        proc_assignment(line, var_name, var_val);
-    }
-
-    printf("%s\n", vars[0]);
-}
-
-int proc_assignment(char* line, char *var_name, char *var_val)
-{
-    const char* delim = "<-";
-    const char* hash = "#";
-
-    char* statement = strtok(line, hash);
-    if (statement == NULL) {
-        return 0;
-    }
-
-    char* first_part = strtok(statement, delim);
-    char* second_part = strtok(NULL, delim);
-
-    if (strtok(NULL, delim) != NULL || second_part == NULL) {
-        return 1;
-    }
-
-    strip(first_part, var_name);
-    strip(second_part, var_val);
-
-    vars[num_vars++] = var_name;
-    return 0;
-}
-
-void proc_statement(char* statement)
-{
-}
-
-void process_fn(char* block)
-{
-    char* local_ids[MAX_ID];
-}
-
-void strip(char* line, char* out)
-{
+// strip function removes unnessisary spaces from the code 
+void strip(char* line)
+{   // first loop removes the leading empty space  
     for (int i = 0; i < strlen(line); i++) {
         if (line[i] != ' ') {
-            strcpy(out, &line[i]);
+            line += i;
+            break;
+        }
+    }
+ // removes all the trailing white spaces
+    for (int i = strlen(line) - 1; i > 0; i--) {
+        if (line[i] == ' ') {
+            line[i] = '\0';
+            continue;
+        }
+        break;
+    }
+}
+// preprocessor function ends the string at # as the rest of the line is not needed for the compiler
+void preprocess(char* line)
+{
+    for (int i = 0; i < strlen(line); i++) {
+        if (line[i] == '#') {
+            line[i] = 0;
             break;
         }
     }
 
-    for (int i = strlen(out) - 1; i > 0; i--) {
-        if (out[i] == ' ') {
-            out[i] = '\0';
-            continue;
-        }
+    strip(line);
+}
 
-        break;
+int handle_assignment(char* line, char *var_arr[], int size,
+                    char *var_name, char *var_val)
+{
+    const char* delim = "<-";
+
+    strcpy(var_name, strtok(line, delim));
+    strcpy(var_val, strtok(NULL, delim));
+
+    // invalid syntax if we have multiple arrows or if we have no arrows
+    if (strtok(NULL, delim) != NULL || var_val == NULL) {
+        fprintf(stderr, "invalid syntax");
+        exit(EXIT_FAILURE);
+    }
+
+    if (strlen(var_name) > 12) {
+        fprintf(stderr, "identifier %s longer than max 12 characters", var_name);
+        exit(EXIT_FAILURE);
+    }
+
+    strip(var_name);
+    strip(var_val);
+
+    var_arr[size++] = var_name;
+    return 0;
+}
+
+// 
+void procfile(char *filename)
+{
+    FILE* infd = fopen(filename, "r");
+    char line[1000];
+
+    while (fgets(line, 1000, infd) != NULL) {
+        preprocess(line);
+        char var_name[1000];
+        char var_val[1000];
+        handle_assignment(line, vars, num_vars, var_name, var_val);
     }
 }
+//main function takes 1 anrgument which is file name
+int main(int argc, char* argv[])
+{
+    if (argc != 2) {
+        printf("Usage:runml [input-file]");
+        exit(EXIT_FAILURE);
+    }
+
+    procfile(argv[1]);
+}
+

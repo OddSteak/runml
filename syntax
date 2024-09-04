@@ -29,4 +29,3 @@ factor:
 functioncall:
           identifier "(" [ expression ( "," expression )* ] ")"
 
-{k, k, k, r, 0, 0, 0, 0}
