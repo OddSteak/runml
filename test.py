@@ -23,8 +23,8 @@ def run_file(mlfile, expfile):
 
     if out.strip() != expout.strip():
         print(f"{mlfile}: {expfile}\n\tFailed\n")
-        print(f"\tExpected:\n\t{expout}\n")
-        print(f"\tGot:\n\t{result.stdout.strip()}\n")
+        print(f"\tExpected:\n\t\t{expout}\n")
+        print(f"\tGot:\n\t\t{result.stdout.strip()}\n")
         passed = False
     else:
         print(f"{mlfile}: {expfile}\n\tPassed")
@@ -36,6 +36,18 @@ def run_file(mlfile, expfile):
         print(f"\t\t{result.stderr}\n")
 
     return passed
+
+
+def count_lines(filename):
+    count = 0
+    with open(filename, 'r') as fd:
+        lines = fd.readlines()
+
+    for i in lines:
+        if not i.isspace():
+            count += 1
+
+    return count
 
 
 passes = 0
@@ -81,3 +93,4 @@ for i in range(len(expout)):
 
 print('---------------------------------------------------')
 print(f"SCORE: {passes}/{total}")
+print(f"num of lines: {count_lines("runml.c")}")
