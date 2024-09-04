@@ -55,6 +55,23 @@ void preprocess(char* line)
     strip(line);
 }
 
+int isValidId(name){
+    for (int i = 0; i < strlen(name); i++){
+        if (!islower(name[i])){
+            printf("Identifier name %s is invalid" , name);
+            exit(EXIT_FAILURE);
+
+        }
+        else if (i == 12)
+        {
+            printf("Identifier name %s is invalid" , name);
+            exit(EXIT_FAILURE);
+        }
+        
+    }
+    return 0
+}
+
 int handle_assignment(char* line, char *var_arr[], int size,
                     char *var_name, char *var_val)
 {
@@ -69,10 +86,7 @@ int handle_assignment(char* line, char *var_arr[], int size,
         exit(EXIT_FAILURE);
     }
 
-    if (strlen(var_name) > 12) {
-        fprintf(stderr, "identifier %s longer than max 12 characters", var_name);
-        exit(EXIT_FAILURE);
-    }
+    isValidId(var_name);
 
     strip(var_name);
     strip(var_val);
