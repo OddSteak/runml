@@ -27,9 +27,7 @@ char* vars[MAX_ID];
 // num_vars keeps a count of the number of variables
 int num_vars = 0;
 
-//
 int bracks(char* brack)
-//
 {
     int op_brack = 1;
     int cl_brack = 0;
@@ -86,7 +84,6 @@ void preprocess(char* line)
 
 int isValidId(char* name)
 {
-    return 0;
     for (int i = 0; i < (int)strlen(name); i++) {
         if (!islower(name[i]) || i == 12) {
             fprintf(stderr, "!Identifier name '%s' is invalid\n", name);
@@ -112,7 +109,6 @@ void handle_fncalls(char* line)
     assert(false && "handle_fncalls is not implemented yet\n");
 }
 
-// TODO recognize fn calls
 void handle_exp(char* line, char* var_arr[], int* size)
 {
     line = strip(line);
@@ -122,7 +118,7 @@ void handle_exp(char* line, char* var_arr[], int* size)
             int close = i + bracks(line + i);
             if (i == 0 && close == (int)strlen(line) - 1) {
                 // everything is within the bracket
-                char cont[2000];
+                char cont[close];
                 strncpy(cont, line + 1, close - 1);
                 handle_exp(cont, var_arr, size);
                 return;
@@ -137,7 +133,7 @@ void handle_exp(char* line, char* var_arr[], int* size)
             i = close + 1;
         } else if (line[i] == '+' || line[i] == '-'
             || line[i] == '*' || line[i] == '/') {
-            char first_part[2000];
+            char first_part[i + 1];
             strncpy(first_part, line, i);
 
             // we know line + i + 1 is a valid address these operators can't be at the end
@@ -166,14 +162,14 @@ int handle_assignment(char* line, char* var_arr[], int* size)
 {
     const char* delim = "<-";
 
-    char* var_name = malloc(1000);
-    char* var_val = malloc(1000);
+    char* var_name = malloc(strlen(line) + 1);
+    char* var_val = malloc(strlen(line) + 1);
 
     strcpy(var_name, strtok(line, delim));
     strcpy(var_val, strtok(NULL, delim));
 
-    // invalid syntax if we have multiple arrows or if we have no arrows
-    if (strtok(NULL, delim) != NULL || var_val == NULL) {
+    // invalid syntax if we have multiple arrows
+    if (strtok(NULL, delim) != NULL) {
         fprintf(stderr, "invalid syntax\n");
         exit(EXIT_FAILURE);
     }
@@ -208,9 +204,9 @@ void procline(char* line, char* var_arr[], int* size)
 void procfile(char* filename)
 {
     FILE* infd = fopen(filename, "r");
-    char line[1000];
+    char line[10000];
 
-    while (fgets(line, 1000, infd) != NULL) {
+    while (fgets(line, 10000, infd) != NULL) {
         preprocess(line);
         procline(line, vars, &num_vars);
     }
