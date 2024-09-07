@@ -44,7 +44,7 @@ def count_lines(filename):
         lines = fd.readlines()
 
     for i in lines:
-        if i.strip() not in ["{", "}", ""]:
+        if i.strip() not in ["{", "}", ""] and i.strip()[:2] != "//":
             count += 1
 
     return count
