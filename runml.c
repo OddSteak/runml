@@ -27,18 +27,21 @@ char* vars[MAX_ID];
 // num_vars keeps a count of the number of variables
 int num_vars = 0;
 
-
 //
 int bracks(char* brack)
 //
-{   int op_brack = 1;
+{
+    int op_brack = 1;
     int cl_brack = 0;
     int i = 1;
-    while(op_brack != cl_brack){
+    while (op_brack != cl_brack) {
+        if (i >= (int)strlen(brack)) {
+            fprintf(stderr, "!brackets are invalid - '%s'\n", brack);
+            exit(EXIT_FAILURE);
+        }
         if (brack[i] == '(') {
             op_brack = op_brack + 1;
-        }
-        else if( brack[i] == ')') {
+        } else if (brack[i] == ')') {
             cl_brack = cl_brack + 1;
         }
         i++;
@@ -52,7 +55,7 @@ char* strip(char* line)
     // first loop removes the leading empty space
     for (int i = 0; i < (int)strlen(line); i++) {
         if (line[i] != ' ') {
-            strcpy(line, line + i);
+            line += i;
             break;
         }
     }
@@ -78,18 +81,15 @@ void preprocess(char* line)
         }
     }
 
-    strip(line);
+    line = strip(line);
 }
 
 int isValidId(char* name)
 {
+    return 0;
     for (int i = 0; i < (int)strlen(name); i++) {
-        if (!islower(name[i])) {
-            printf("Identifier name %s is invalid\n", name);
-            exit(EXIT_FAILURE);
-
-        } else if (i == 12) {
-            printf("Identifier name %s is invalid\n", name);
+        if (!islower(name[i]) || i == 12) {
+            fprintf(stderr, "!Identifier name '%s' is invalid\n", name);
             exit(EXIT_FAILURE);
         }
     }
@@ -107,23 +107,47 @@ bool isDefined(char* name, char* var_arr[], int size)
     return false;
 }
 
+void handle_fncalls(char* line)
+{
+    assert(false && "handle_fncalls is not implemented yet\n");
+}
+
 // TODO recognize fn calls
 void handle_exp(char* line, char* var_arr[], int* size)
 {
-    for (int i = 0; i < strlen(line); i++) {
-        if (line[i] == '+' || line[i] == '-'
+    line = strip(line);
+
+    for (int i = 0; i < (int)strlen(line); i++) {
+        if (line[i] == '(') {
+            int close = i + bracks(line + i);
+            if (i == 0 && close == (int)strlen(line) - 1) {
+                // everything is within the bracket
+                char cont[2000];
+                strncpy(cont, line + 1, close - 1);
+                handle_exp(cont, var_arr, size);
+                return;
+            } else if (close == (int)strlen(line) - 1) {
+                // this is fucntion call since the opening brack doesn't
+                // start at 0 but ends at the end
+                handle_fncalls(line);
+                return;
+            }
+
+            // otherwise we will simply move the pointer to the closing brack
+            i = close + 1;
+        } else if (line[i] == '+' || line[i] == '-'
             || line[i] == '*' || line[i] == '/') {
-            line[i] = 0;
+            char first_part[2000];
+            strncpy(first_part, line, i);
 
             // we know line + i + 1 is a valid address these operators can't be at the end
             // assuming the expressions are valid
-            handle_exp(line, var_arr, size);
+            handle_exp(first_part, var_arr, size);
             handle_exp(line + i + 1, var_arr, size);
             return;
         }
     }
 
-    strip(line);
     double convert = strtod(line, NULL);
 
     // if strtod failed, we can assume it's an identifier
@@ -150,14 +174,14 @@ int handle_assignment(char* line, char* var_arr[], int* size)
 
     // invalid syntax if we have multiple arrows or if we have no arrows
     if (strtok(NULL, delim) != NULL || var_val == NULL) {
-        fprintf(stderr, "invalid syntax");
+        fprintf(stderr, "invalid syntax\n");
         exit(EXIT_FAILURE);
     }
 
     isValidId(var_name);
 
-    strip(var_name);
-    strip(var_val);
+    line = strip(var_name);
+    line = strip(var_val);
 
     handle_exp(var_val, var_arr, size);
     var_arr[size[0]++] = var_name;
@@ -167,11 +191,6 @@ int handle_assignment(char* line, char* var_arr[], int* size)
 void handle_function(char* line)
 {
     assert(false && "handle_function is not implemented yet\n");
-}
-
-void handle_fncalls(char* line)
-{
-    assert(false && "handle_fncalls is not implemented yet\n");
 }
 
 void procline(char* line, char* var_arr[], int* size)
@@ -201,7 +220,7 @@ void procfile(char* filename)
 int main(int argc, char* argv[])
 {
     if (argc != 2) {
-        printf("Usage:runml [input-file]");
+        fprintf(stderr, "!Usage:runml [input-file]");
         exit(EXIT_FAILURE);
     }
 
