@@ -33,7 +33,7 @@ char* strip(char* line)
     // first loop removes the leading empty space
     for (int i = 0; i < (int)strlen(line); i++) {
         if (line[i] != ' ') {
-            line += i;
+            strcpy(line, line + i);
             break;
         }
     }
@@ -59,7 +59,7 @@ void preprocess(char* line)
         }
     }
 
-    line = strip(line);
+    strip(line);
 }
 
 int isValidId(char* name)
@@ -104,7 +104,7 @@ void handle_exp(char* line, char* var_arr[], int* size)
         }
     }
 
-    line = strip(line);
+    strip(line);
     double convert = strtod(line, NULL);
 
     // if strtod failed, we can assume it's an identifier
@@ -137,8 +137,8 @@ int handle_assignment(char* line, char* var_arr[], int* size)
 
     isValidId(var_name);
 
-    line = strip(var_name);
-    line = strip(var_val);
+    strip(var_name);
+    strip(var_val);
 
     handle_exp(var_val, var_arr, size);
     var_arr[size[0]++] = var_name;
