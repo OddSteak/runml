@@ -1,5 +1,5 @@
 //  CITS2002 Project 1 2024
-//  Student1:   STUDENT-24000581   NAME- Mohammad Ashraf Qureshi
+//  Student1:   STUDENT-24000581   NAME-Mohammad Ashraf Qureshi
 //  Student2:   STUDENT-23895849   NAME-Baasil Sidiqui
 //  Platform:   Linux
 
@@ -26,6 +26,26 @@ int num_fns = 0;
 char* vars[MAX_ID];
 int num_vars = 0;
 // num_vars keeps a count of the number of variables
+
+
+//
+int bracks(char* brack)
+// 
+{   int op_brack = 1;
+    int cl_brack = 0;
+    int i = 1;
+    while(op_brack != cl_brack){
+        if (brack[i] == ('(')) {
+            op_brack = op_brack + 1;
+        }
+        else if( brack[i] == (')')) {
+            cl_brack = cl_brack + 1;
+            
+        }
+        i++;
+    }
+    return i;
+}
 
 // strip function removes unnessisary spaces from the code
 void strip(char* line)
