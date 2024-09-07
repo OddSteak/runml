@@ -24,8 +24,8 @@ struct fn fn_list[MAX_ID];
 int num_fns = 0;
 // var is a list a list of unique identifiers which are variables in the program
 char* vars[MAX_ID];
-int num_vars = 0;
 // num_vars keeps a count of the number of variables
+int num_vars = 0;
 
 
 //
@@ -48,11 +48,12 @@ int bracks(char* brack)
 }
 
 // strip function removes unnessisary spaces from the code
-void strip(char* line)
-{ // first loop removes the leading empty space
+char* strip(char* line)
+{
+    // first loop removes the leading empty space
     for (int i = 0; i < (int)strlen(line); i++) {
         if (line[i] != ' ') {
-            line += i;
+            strcpy(line, line + i);
             break;
         }
     }
@@ -64,6 +65,8 @@ void strip(char* line)
         }
         break;
     }
+
+    return line;
 }
 
 // preprocessor function ends the string at # as the rest of the line is not needed for the compiler
