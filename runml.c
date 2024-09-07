@@ -24,12 +24,13 @@ struct fn fn_list[MAX_ID];
 int num_fns = 0;
 // var is a list a list of unique identifiers which are variables in the program
 char* vars[MAX_ID];
-int num_vars = 0;
 // num_vars keeps a count of the number of variables
+int num_vars = 0;
 
 // strip function removes unnessisary spaces from the code
-void strip(char* line)
-{ // first loop removes the leading empty space
+char* strip(char* line)
+{
+    // first loop removes the leading empty space
     for (int i = 0; i < (int)strlen(line); i++) {
         if (line[i] != ' ') {
             line += i;
@@ -44,6 +45,8 @@ void strip(char* line)
         }
         break;
     }
+
+    return line;
 }
 
 // preprocessor function ends the string at # as the rest of the line is not needed for the compiler
@@ -56,7 +59,7 @@ void preprocess(char* line)
         }
     }
 
-    strip(line);
+    line = strip(line);
 }
 
 int isValidId(char* name)
@@ -101,7 +104,7 @@ void handle_exp(char* line, char* var_arr[], int* size)
         }
     }
 
-    strip(line);
+    line = strip(line);
     double convert = strtod(line, NULL);
 
     // if strtod failed, we can assume it's an identifier
@@ -134,8 +137,8 @@ int handle_assignment(char* line, char* var_arr[], int* size)
 
     isValidId(var_name);
 
-    strip(var_name);
-    strip(var_val);
+    line = strip(var_name);
+    line = strip(var_val);
 
     handle_exp(var_val, var_arr, size);
     var_arr[size[0]++] = var_name;
