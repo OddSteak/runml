@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 // maximum Identifiers a the program will have is 50
 #define MAX_ID 50
@@ -47,7 +49,7 @@ int bracks(char* brack)
     return i - 1;
 }
 
-// strip function removes unnessisary spaces from the code
+// strip function removes unnecessary spaces from the code
 char* strip(char* line)
 {
     // first loop removes the leading empty space
@@ -59,8 +61,8 @@ char* strip(char* line)
     }
     // removes all the trailing white spaces
     for (int i = strlen(line) - 1; i > 0; i--) {
-        if (line[i] == ' ') {
-            line[i] = '\0';
+        if (line[i] == ' ' || line[i] == '\n') {
+            line[i] = 0;
             continue;
         }
         break;
@@ -70,7 +72,7 @@ char* strip(char* line)
 }
 
 // preprocessor function ends the string at # as the rest of the line is not needed for the compiler
-void preprocess(char* line)
+char* preprocess(char* line)
 {
     for (int i = 0; i < (int)strlen(line); i++) {
         if (line[i] == '#') {
@@ -79,7 +81,7 @@ void preprocess(char* line)
         }
     }
 
-    line = strip(line);
+    return strip(line);
 }
 
 int isValidId(char* name)
@@ -109,7 +111,7 @@ void handle_fncalls(char* line)
     assert(false && "handle_fncalls is not implemented yet\n");
 }
 
-void handle_exp(char* line, char* var_arr[], int* size)
+void handle_exp(char* line, char* var_arr[], int* size, FILE* varout)
 {
     line = strip(line);
 
@@ -120,7 +122,7 @@ void handle_exp(char* line, char* var_arr[], int* size)
                 // everything is within the bracket
                 char cont[close];
                 strncpy(cont, line + 1, close - 1);
-                handle_exp(cont, var_arr, size);
+                handle_exp(cont, var_arr, size, varout);
                 return;
             } else if (close == (int)strlen(line) - 1) {
                 // this is fucntion call since the opening brack doesn't
@@ -135,11 +137,12 @@ void handle_exp(char* line, char* var_arr[], int* size)
             || line[i] == '*' || line[i] == '/') {
             char first_part[i + 1];
             strncpy(first_part, line, i);
+            first_part[i] = 0;
 
             // we know line + i + 1 is a valid address these operators can't be at the end
             // assuming the expressions are valid
-            handle_exp(first_part, var_arr, size);
-            handle_exp(line + i + 1, var_arr, size);
+            handle_exp(first_part, var_arr, size, varout);
+            handle_exp(line + i + 1, var_arr, size, varout);
             return;
         }
     }
@@ -150,15 +153,17 @@ void handle_exp(char* line, char* var_arr[], int* size)
     if ((strcmp(line, "0") && convert == 0) && !isDefined(line, var_arr, *size)) {
         isValidId(line);
         var_arr[size[0]++] = line;
+        fprintf(varout, "double %s = 0.0;\n", line);
     }
 }
 
-void handle_print(char* line, char* var_arr[], int* size)
+void handle_print(char* line, char* var_arr[], int* size, FILE* outfile)
 {
-    handle_exp(line + 6, var_arr, size);
+    handle_exp(line + 6, var_arr, size, outfile);
+    fprintf(outfile, "printf(\"%%lf\", %s);\n", line + 6);
 }
 
-int handle_assignment(char* line, char* var_arr[], int* size)
+int handle_assignment(char* line, char* var_arr[], int* size, FILE* outfile)
 {
     const char* delim = "<-";
 
@@ -170,45 +175,119 @@ int handle_assignment(char* line, char* var_arr[], int* size)
 
     // invalid syntax if we have multiple arrows
     if (strtok(NULL, delim) != NULL) {
-        fprintf(stderr, "invalid syntax\n");
+        fprintf(stderr, "!multiple arrows are not allowed in assignment statement\n");
         exit(EXIT_FAILURE);
     }
 
+    var_name = strip(var_name);
+    var_val = strip(var_val);
+
     isValidId(var_name);
 
-    line = strip(var_name);
-    line = strip(var_val);
-
-    handle_exp(var_val, var_arr, size);
+    handle_exp(var_val, var_arr, size, outfile);
     var_arr[size[0]++] = var_name;
+    fprintf(outfile, "double %s = %s;\n", var_name, var_val);
     return 0;
 }
 
-void handle_function(char* line)
+void handle_fndef(char* line, FILE* outfile)
 {
     assert(false && "handle_function is not implemented yet\n");
 }
 
-void procline(char* line, char* var_arr[], int* size)
+void procline(char* line, char* var_arr[], int* size, FILE* varout, FILE* mainout)
 {
     if (strncmp(line, "print ", 6) == 0)
-        handle_print(line, vars, &num_vars);
+        handle_print(line, vars, &num_vars, mainout);
     else if (strncmp(line, "function ", 9) == 0)
-        handle_function(line);
-    else if (strstr(line, "<-") == NULL)
-        handle_assignment(line, vars, &num_vars);
+        handle_fndef(line, varout);
+    else if (strstr(line, "<-") != NULL)
+        handle_assignment(line, vars, &num_vars, varout);
     else
-        handle_exp(line, vars, &num_vars);
+        handle_exp(line, vars, &num_vars, varout);
 }
 
-void procfile(char* filename)
+void procfile(char* filename, FILE* varout, FILE* mainout)
 {
     FILE* infd = fopen(filename, "r");
     char line[10000];
 
     while (fgets(line, 10000, infd) != NULL) {
-        preprocess(line);
-        procline(line, vars, &num_vars);
+        char* prepped = preprocess(line);
+        if (strcmp(prepped, "")) {
+            procline(prepped, vars, &num_vars, varout, mainout);
+        }
+    }
+}
+
+FILE* init_vars(char* varpath)
+{
+    FILE* varout = fopen(varpath, "w");
+    fputs("#include <stdio.h>\n\n", varout);
+    return varout;
+}
+
+FILE* init_main(char* mainpath)
+{
+    FILE* mainout = fopen(mainpath, "w");
+
+    fputs("int main(int ac, char *av[]) {\n", mainout);
+    return mainout;
+}
+
+void close_main(FILE* mainout)
+{
+    fputs("}\n", mainout);
+    fclose(mainout);
+}
+
+char* merge_files(char* varpath, char *mainpath, char* outpath)
+{
+    FILE* varfd = fopen(varpath, "r");
+    FILE* mainfd = fopen(mainpath, "r");
+    FILE* outfd = fopen(outpath, "w");
+
+    char buf[10000];
+
+    while (fgets(buf, 10000, varfd) != NULL) {
+        fputs(buf, outfd);
+    }
+    fputs("\n", outfd);
+    while (fgets(buf, 10000, mainfd) != NULL) {
+        fputs(buf, outfd);
+    }
+
+    fclose(varfd);
+    fclose(mainfd);
+    fclose(outfd);
+
+    unlink(varpath);
+    unlink(mainpath);
+
+    return outpath;
+}
+
+void comp_run(char* filename)
+{
+    char outpath[strlen(filename) + 1];
+    strncat(strcpy(outpath, "./"), filename, strlen(filename) - 2);
+
+    int pid = fork();
+
+    if (pid == 0) {
+        char* args[] = { "/usr/bin/gcc", "-o", outpath, filename, NULL };
+        execvp(args[0], args);
+    } else {
+        wait(&pid);
+    }
+
+    pid = fork();
+
+    if (pid == 0) {
+        char* args[] = { outpath, NULL };
+        execvp(args[0], args);
+    } else {
+        wait(&pid);
     }
 }
 
@@ -220,5 +299,23 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    procfile(argv[1]);
+    char varpath[1024];
+    sprintf(varpath, "ml-%d-vars.c", getpid());
+
+    char mainpath[1024];
+    sprintf(mainpath, "ml-%d-main.c", getpid());
+
+    FILE* varout = init_vars(varpath);
+    FILE* mainout = init_main(mainpath);
+
+    procfile(argv[1], varout, mainout);
+
+    fclose(varout);
+    close_main(mainout);
+
+    char outpath[1024];
+    sprintf(outpath, "ml-%d.c", getpid());
+
+    merge_files(varpath, mainpath, outpath);
+    comp_run(outpath);
 }

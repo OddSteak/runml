@@ -64,23 +64,10 @@ testfiles = [os.path.join(test_dir, f) for f in os.listdir(test_dir)
              if os.path.isfile(os.path.join(test_dir, f))
              and f.split(".")[-1] == "ml"]
 
-expout = [os.path.join(test_dir, f) for f in os.listdir(test_dir)
-          if os.path.isfile(os.path.join(test_dir, f))
-          and f.split(".")[-1] == "exp"]
-
-expout.sort()
 testfiles.sort()
 
-if len(testfiles) != len(expout):
-    print("TEST error: number of test files doesn't match output files \
-            in test directory")
-    print("test files should end with .ml and exp outs should have \
-            .exp appended to the file name")
-    exit()
-
-for i in range(len(expout)):
-    if '.'.join(expout[i].split(".")[:-1]) != testfiles[i] \
-            or expout[i].split(".")[-1] != "exp":
+for i in range(len(testfiles)):
+    if not os.path.isfile(testfiles[i] + ".exp"):
         print("TEST error: name mismatch")
         print("name samples as sample0{num}.ml and out files as \
             sample0{num}.ml.exp")
@@ -88,7 +75,7 @@ for i in range(len(expout)):
 
     total += 1
 
-    if run_file(testfiles[i], expout[i]):
+    if run_file(testfiles[i], testfiles[i] + ".exp"):
         passes += 1
 
 print('---------------------------------------------------')
