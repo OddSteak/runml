@@ -60,7 +60,7 @@ char* strip(char* line)
         }
     }
     // removes all the trailing white spaces
-    for (int i = strlen(line) - 1; i > 0; i--) {
+    for (int i = strlen(line) - 1; i >= 0; i--) {
         if (line[i] == ' ' || line[i] == '\n') {
             line[i] = 0;
             continue;
@@ -161,7 +161,7 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varout)
 void handle_print(char* line, char* var_arr[], int* size, FILE* outfile)
 {
     handle_exp(line + 6, var_arr, size, outfile);
-    fprintf(outfile, "if (%s == (int)(%s))\n\tprintf(\"%%.0lf\", %s);\nelse\n\tprintf(\"%%.6lf\", %s);\n",
+    fprintf(outfile, "if (%s == (int)(%s))\n\tprintf(\"%%.0lf\\n\", %s);\nelse\n\tprintf(\"%%.6lf\\n\", %s);\n",
                         line + 6, line + 6, line + 6, line + 6);
 }
 
@@ -260,10 +260,14 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
 
     fprintf(fnfd, "double %s(", strfn.name);
 
-    for (int i = 0; i < strfn.ac - 1; i++) {
-        fprintf(fnfd, "double %s, ", args[i]);
+    if (strfn.ac > 0) {
+    	for (int i = 0; i < strfn.ac - 1; i++) {
+        	fprintf(fnfd, "double %s, ", args[i]);
+    	}
+    	fprintf(fnfd, "double %s) {\n", args[strfn.ac - 1]);
+    } else {
+    	fprintf(fnfd, ") {\n");
     }
-    fprintf(fnfd, "double %s) {\n", args[strfn.ac - 1]);
 
     char buf[10000];
     while (fgets(buf, 10000, infd) != NULL) {
