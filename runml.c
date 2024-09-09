@@ -84,7 +84,8 @@ char* preprocess(char* line)
     return strip(line);
 }
 
-int isValidId(char* name)
+// fail if the variable name is invalid
+void isValidId(char* name)
 {
     for (int i = 0; i < (int)strlen(name); i++) {
         if (!islower(name[i]) || i == 12) {
@@ -92,7 +93,6 @@ int isValidId(char* name)
             exit(EXIT_FAILURE);
         }
     }
-    return 0;
 }
 
 bool isDefined(char* name, char* var_arr[], int size)
@@ -112,7 +112,7 @@ void handle_fncalls(char* line)
     // assert(false && "handle_fncalls is not implemented yet\n");
 }
 
-void handle_exp(char* line, char* var_arr[], int* size, FILE* varout)
+void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
 {
     line = strip(line);
 
@@ -123,7 +123,7 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varout)
                 // everything is within the bracket
                 char cont[close];
                 strncpy(cont, line + 1, close - 1);
-                handle_exp(cont, var_arr, size, varout);
+                handle_exp(cont, var_arr, size, varfd);
                 return;
             } else if (close == (int)strlen(line) - 1) {
                 // this is fucntion call since the opening brack doesn't
@@ -142,8 +142,8 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varout)
 
             // we know line + i + 1 is a valid address these operators can't be at the end
             // assuming the expressions are valid
-            handle_exp(first_part, var_arr, size, varout);
-            handle_exp(line + i + 1, var_arr, size, varout);
+            handle_exp(first_part, var_arr, size, varfd);
+            handle_exp(line + i + 1, var_arr, size, varfd);
             return;
         }
     }
@@ -153,19 +153,20 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varout)
     // if strtod failed, we can assume it's an identifier
     if ((strcmp(line, "0") && convert == 0) && !isDefined(line, var_arr, *size)) {
         isValidId(line);
-        var_arr[size[0]++] = line;
-        fprintf(varout, "double %s = 0.0;\n", line);
+        var_arr[(*size)++] = line;
+        fprintf(varfd, "double %s = 0.0;\n", line);
     }
 }
 
-void handle_print(char* line, char* var_arr[], int* size, FILE* outfile)
+void handle_print(char* line, char* var_arr[], int* size, FILE* outfd)
 {
-    handle_exp(line + 6, var_arr, size, outfile);
-    fprintf(outfile, "if (%s == (int)(%s))\n\tprintf(\"%%.0lf\\n\", %s);\nelse\n\tprintf(\"%%.6lf\\n\", %s);\n",
-                        line + 6, line + 6, line + 6, line + 6);
+    handle_exp(line, var_arr, size, outfd);
+    fprintf(outfd, "if (%s == (int)(%s))\n", line, line);
+	fprintf(outfd, "\tprintf(\"%%.0lf\\n\", %s);\n", line);
+	fprintf(outfd, "else\n\tprintf(\"%%.6lf\\n\", %s);\n\n", line);
 }
 
-int handle_assignment(char* line, char* var_arr[], int* size, FILE* outfile)
+void handle_assignment(char* line, char* var_arr[], int* size, FILE* outfd)
 {
     const char* delim = "<-";
 
@@ -186,10 +187,9 @@ int handle_assignment(char* line, char* var_arr[], int* size, FILE* outfile)
 
     isValidId(var_name);
 
-    handle_exp(var_val, var_arr, size, outfile);
-    var_arr[size[0]++] = var_name;
-    fprintf(outfile, "double %s = %s;\n", var_name, var_val);
-    return 0;
+    handle_exp(var_val, var_arr, size, outfd);
+    var_arr[(*size)++] = var_name;
+    fprintf(outfd, "double %s = %s;\n", var_name, var_val);
 }
 
 void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd);
@@ -202,13 +202,13 @@ void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, F
         return;
 
     if (strncmp(line, "print ", 6) == 0)
-        handle_print(line, var_arr, size, mainfd);
+        handle_print(line + 6, var_arr, size, mainfd);
     else if (strncmp(line, "function ", 9) == 0) {
         if (fnfd == NULL) {
-            fprintf(stderr, "nested functions are not allowed\n");
+            fprintf(stderr, "!nested functions are not allowed\n");
             exit(EXIT_FAILURE);
         }
-        handle_fndef(line, infd, varfd, mainfd, fnfd);
+        handle_fndef(line + 9, infd, varfd, mainfd, fnfd);
     } else if (strstr(line, "<-") != NULL)
         handle_assignment(line, var_arr, size, varfd);
     else if (strncmp(line, "return ", 7) == 0) {
@@ -219,8 +219,7 @@ void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, F
 
         handle_exp(line + 7, var_arr, size, varfd);
         fprintf(mainfd, "%s;\n", line);
-    }
-    else {
+    } else {
         handle_exp(line, var_arr, size, varfd);
         fprintf(mainfd, "%s;\n", line);
     }
@@ -229,8 +228,8 @@ void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, F
 void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
 {
     struct fn strfn;
-    char* local_ids[50];
-    char* args[50];
+    char* local_ids[MAX_ID];
+    char* args[MAX_ID];
 
     int num_locids = num_vars;
     strfn.ac = 0;
@@ -239,12 +238,7 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
         local_ids[i] = vars[i];
     }
 
-    if (strcmp(strtok(line, " "), "function")) {
-        fprintf(stderr, "unreachable code reached\n");
-        exit(EXIT_FAILURE);
-    }
-
-    strfn.name = strtok(NULL, " ");
+    strfn.name = strtok(line, " ");
 
     while (true) {
         char* buf = strtok(NULL, " ");
@@ -261,34 +255,36 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
     fprintf(fnfd, "double %s(", strfn.name);
 
     if (strfn.ac > 0) {
-    	for (int i = 0; i < strfn.ac - 1; i++) {
-        	fprintf(fnfd, "double %s, ", args[i]);
-    	}
-    	fprintf(fnfd, "double %s) {\n", args[strfn.ac - 1]);
+        for (int i = 0; i < strfn.ac - 1; i++) {
+            fprintf(fnfd, "double %s, ", args[i]);
+        }
+        fprintf(fnfd, "double %s) {\n", args[strfn.ac - 1]);
     } else {
-    	fprintf(fnfd, ") {\n");
+        fprintf(fnfd, ") {\n");
     }
 
-    char buf[10000];
-    while (fgets(buf, 10000, infd) != NULL) {
+    char buf[BUFSIZ];
+    while (fgets(buf, BUFSIZ, infd) != NULL) {
         if (buf[0] != '\t') {
-            fprintf(fnfd, "}\n");
+            // leaving the function
+            fprintf(fnfd, "}\n\n");
             procline(buf, vars, &num_vars, infd, varfd, mainfd, fnfd);
             return;
         }
 
+        // passing NULL for fnfd to indicate that we are inside a function
         procline(buf, local_ids, &num_locids, infd, fnfd, fnfd, NULL);
     }
 
-    fprintf(fnfd, "}\n");
+    fprintf(fnfd, "}\n\n");
 }
 
 void procfile(char* filename, FILE* varfd, FILE* mainfd, FILE* fnfd)
 {
     FILE* infd = fopen(filename, "r");
-    char line[10000];
+    char line[BUFSIZ];
 
-    while (fgets(line, 10000, infd) != NULL) {
+    while (fgets(line, BUFSIZ, infd) != NULL) {
         procline(line, vars, &num_vars, infd, varfd, mainfd, fnfd);
     }
 }
@@ -308,36 +304,33 @@ FILE* init_main(char* mainpath)
     return mainfd;
 }
 
-void close_main(FILE* mainout)
+void close_main(FILE* mainfd)
 {
-    fputs("}\n", mainout);
-    fclose(mainout);
+    fputs("}\n", mainfd);
+    fclose(mainfd);
 }
 
-char* merge_files(char* varpath, char* mainpath, char* fnpath, char* outpath)
+void merge_files(char* varpath, char* mainpath, char* fnpath, char* outpath)
 {
     FILE* varfd = fopen(varpath, "r");
     FILE* mainfd = fopen(mainpath, "r");
     FILE* fnfd = fopen(fnpath, "r");
     FILE* outfd = fopen(outpath, "w");
 
-    char buf[10000];
+    char buf[BUFSIZ];
 
-    while (fgets(buf, 10000, varfd) != NULL) {
+    while (fgets(buf, BUFSIZ, varfd) != NULL)
         fputs(buf, outfd);
-    }
 
     fputs("\n", outfd);
 
-    while (fgets(buf, 10000, fnfd) != NULL) {
+    while (fgets(buf, BUFSIZ, fnfd) != NULL)
         fputs(buf, outfd);
-    }
 
     fputs("\n", outfd);
 
-    while (fgets(buf, 10000, mainfd) != NULL) {
+    while (fgets(buf, BUFSIZ, mainfd) != NULL)
         fputs(buf, outfd);
-    }
 
     fclose(varfd);
     fclose(mainfd);
@@ -347,19 +340,17 @@ char* merge_files(char* varpath, char* mainpath, char* fnpath, char* outpath)
     unlink(varpath);
     unlink(mainpath);
     unlink(fnpath);
-
-    return outpath;
 }
 
-void comp_run(char* filename)
+void runml(char* filename)
 {
-    char outpath[strlen(filename) + 1];
-    strncat(strcpy(outpath, "./"), filename, strlen(filename) - 2);
+    char binpath[strlen(filename) + 1];
+    strncat(strcpy(binpath, "./"), filename, strlen(filename) - 2);
 
     int pid = fork();
 
     if (pid == 0) {
-        char* args[] = { "/usr/bin/gcc", "-o", outpath, filename, NULL };
+        char* args[] = { "cc", "-o", binpath, filename, NULL };
         execvp(args[0], args);
     } else {
         wait(&pid);
@@ -368,14 +359,14 @@ void comp_run(char* filename)
     pid = fork();
 
     if (pid == 0) {
-        char* args[] = { outpath, NULL };
+        char* args[] = { binpath, NULL };
         execvp(args[0], args);
     } else {
         wait(&pid);
     }
 }
 
-// main function takes 1 anrgument which is file name
+// main function takes 1 arg which is file name
 int main(int argc, char* argv[])
 {
     if (argc != 2) {
@@ -383,14 +374,15 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
+    int pid = getpid();
     char varpath[1024];
-    sprintf(varpath, "ml-%d-vars.c", getpid());
+    sprintf(varpath, "ml-%d-vars.c", pid);
 
     char mainpath[1024];
-    sprintf(mainpath, "ml-%d-main.c", getpid());
+    sprintf(mainpath, "ml-%d-main.c", pid);
 
     char fnpath[1024];
-    sprintf(fnpath, "ml-%d-fn.c", getpid());
+    sprintf(fnpath, "ml-%d-fn.c", pid);
 
     FILE* varfd = init_vars(varpath);
     FILE* mainfd = init_main(mainpath);
@@ -403,8 +395,10 @@ int main(int argc, char* argv[])
     fclose(fnfd);
 
     char outpath[1024];
-    sprintf(outpath, "ml-%d.c", getpid());
+    sprintf(outpath, "ml-%d.c", pid);
 
     merge_files(varpath, mainpath, fnpath, outpath);
-    comp_run(outpath);
+    runml(outpath);
+
+    return 0;
 }
