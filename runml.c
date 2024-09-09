@@ -10,8 +10,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 // maximum Identifiers a the program will have is 50
 #define MAX_ID 50
@@ -19,7 +19,7 @@
 // defines the stucture of fn which hold the name and the number of aruments a function has will use these to process funvctions
 struct fn {
     char* name;
-    int args;
+    int ac;
 };
 // fn_list is a list of the stuctures for function so we can track them, num_fns is used to track the number of function we have in the program
 struct fn fn_list[MAX_ID];
@@ -54,7 +54,7 @@ char* strip(char* line)
 {
     // first loop removes the leading empty space
     for (int i = 0; i < (int)strlen(line); i++) {
-        if (line[i] != ' ') {
+        if (line[i] != ' ' && line[i] != '\t') {
             line += i;
             break;
         }
@@ -108,7 +108,8 @@ bool isDefined(char* name, char* var_arr[], int size)
 
 void handle_fncalls(char* line)
 {
-    assert(false && "handle_fncalls is not implemented yet\n");
+    return;
+    // assert(false && "handle_fncalls is not implemented yet\n");
 }
 
 void handle_exp(char* line, char* var_arr[], int* size, FILE* varout)
@@ -160,7 +161,8 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varout)
 void handle_print(char* line, char* var_arr[], int* size, FILE* outfile)
 {
     handle_exp(line + 6, var_arr, size, outfile);
-    fprintf(outfile, "printf(\"%%lf\", %s);\n", line + 6);
+    fprintf(outfile, "if (%s == (int)(%s))\n\tprintf(\"%%.0lf\", %s);\nelse\n\tprintf(\"%%.6lf\", %s);\n",
+                        line + 6, line + 6, line + 6, line + 6);
 }
 
 int handle_assignment(char* line, char* var_arr[], int* size, FILE* outfile)
@@ -190,49 +192,116 @@ int handle_assignment(char* line, char* var_arr[], int* size, FILE* outfile)
     return 0;
 }
 
-void handle_fndef(char* line, FILE* outfile)
-{
-    assert(false && "handle_function is not implemented yet\n");
-}
+void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd);
 
-void procline(char* line, char* var_arr[], int* size, FILE* varout, FILE* mainout)
+void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
 {
+    line = preprocess(line);
+
+    if (!strcmp(line, ""))
+        return;
+
     if (strncmp(line, "print ", 6) == 0)
-        handle_print(line, vars, &num_vars, mainout);
-    else if (strncmp(line, "function ", 9) == 0)
-        handle_fndef(line, varout);
-    else if (strstr(line, "<-") != NULL)
-        handle_assignment(line, vars, &num_vars, varout);
-    else
-        handle_exp(line, vars, &num_vars, varout);
+        handle_print(line, var_arr, size, mainfd);
+    else if (strncmp(line, "function ", 9) == 0) {
+        if (fnfd == NULL) {
+            fprintf(stderr, "nested functions are not allowed\n");
+            exit(EXIT_FAILURE);
+        }
+        handle_fndef(line, infd, varfd, mainfd, fnfd);
+    } else if (strstr(line, "<-") != NULL)
+        handle_assignment(line, var_arr, size, varfd);
+    else if (strncmp(line, "return ", 7) == 0) {
+        if (fnfd != NULL) {
+            fprintf(stderr, "!return statement is not allowed outside function definition\n");
+            exit(EXIT_FAILURE);
+        }
+
+        handle_exp(line + 7, var_arr, size, varfd);
+        fprintf(mainfd, "%s;\n", line);
+    }
+    else {
+        handle_exp(line, var_arr, size, varfd);
+        fprintf(mainfd, "%s;\n", line);
+    }
 }
 
-void procfile(char* filename, FILE* varout, FILE* mainout)
+void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
+{
+    struct fn strfn;
+    char* local_ids[50];
+    char* args[50];
+
+    int num_locids = num_vars;
+    strfn.ac = 0;
+
+    for (int i = 0; i < num_vars; i++) {
+        local_ids[i] = vars[i];
+    }
+
+    if (strcmp(strtok(line, " "), "function")) {
+        fprintf(stderr, "unreachable code reached\n");
+        exit(EXIT_FAILURE);
+    }
+
+    strfn.name = strtok(NULL, " ");
+
+    while (true) {
+        char* buf = strtok(NULL, " ");
+
+        if (buf == NULL)
+            break;
+
+        buf = strip(buf);
+        args[strfn.ac++] = buf;
+        local_ids[num_locids++] = buf;
+    }
+    fn_list[num_fns++] = strfn;
+
+    fprintf(fnfd, "double %s(", strfn.name);
+
+    for (int i = 0; i < strfn.ac - 1; i++) {
+        fprintf(fnfd, "double %s, ", args[i]);
+    }
+    fprintf(fnfd, "double %s) {\n", args[strfn.ac - 1]);
+
+    char buf[10000];
+    while (fgets(buf, 10000, infd) != NULL) {
+        if (buf[0] != '\t') {
+            fprintf(fnfd, "}\n");
+            procline(buf, vars, &num_vars, infd, varfd, mainfd, fnfd);
+            return;
+        }
+
+        procline(buf, local_ids, &num_locids, infd, fnfd, fnfd, NULL);
+    }
+
+    fprintf(fnfd, "}\n");
+}
+
+void procfile(char* filename, FILE* varfd, FILE* mainfd, FILE* fnfd)
 {
     FILE* infd = fopen(filename, "r");
     char line[10000];
 
     while (fgets(line, 10000, infd) != NULL) {
-        char* prepped = preprocess(line);
-        if (strcmp(prepped, "")) {
-            procline(prepped, vars, &num_vars, varout, mainout);
-        }
+        procline(line, vars, &num_vars, infd, varfd, mainfd, fnfd);
     }
 }
 
 FILE* init_vars(char* varpath)
 {
-    FILE* varout = fopen(varpath, "w");
-    fputs("#include <stdio.h>\n\n", varout);
-    return varout;
+    FILE* varfd = fopen(varpath, "w");
+    fputs("#include <stdio.h>\n\n", varfd);
+    return varfd;
 }
 
 FILE* init_main(char* mainpath)
 {
-    FILE* mainout = fopen(mainpath, "w");
+    FILE* mainfd = fopen(mainpath, "w");
 
-    fputs("int main(int ac, char *av[]) {\n", mainout);
-    return mainout;
+    fputs("int main(int ac, char *av[]) {\n", mainfd);
+    return mainfd;
 }
 
 void close_main(FILE* mainout)
@@ -241,10 +310,11 @@ void close_main(FILE* mainout)
     fclose(mainout);
 }
 
-char* merge_files(char* varpath, char *mainpath, char* outpath)
+char* merge_files(char* varpath, char* mainpath, char* fnpath, char* outpath)
 {
     FILE* varfd = fopen(varpath, "r");
     FILE* mainfd = fopen(mainpath, "r");
+    FILE* fnfd = fopen(fnpath, "r");
     FILE* outfd = fopen(outpath, "w");
 
     char buf[10000];
@@ -252,17 +322,27 @@ char* merge_files(char* varpath, char *mainpath, char* outpath)
     while (fgets(buf, 10000, varfd) != NULL) {
         fputs(buf, outfd);
     }
+
     fputs("\n", outfd);
+
+    while (fgets(buf, 10000, fnfd) != NULL) {
+        fputs(buf, outfd);
+    }
+
+    fputs("\n", outfd);
+
     while (fgets(buf, 10000, mainfd) != NULL) {
         fputs(buf, outfd);
     }
 
     fclose(varfd);
     fclose(mainfd);
+    fclose(fnfd);
     fclose(outfd);
 
     unlink(varpath);
     unlink(mainpath);
+    unlink(fnpath);
 
     return outpath;
 }
@@ -305,17 +385,22 @@ int main(int argc, char* argv[])
     char mainpath[1024];
     sprintf(mainpath, "ml-%d-main.c", getpid());
 
-    FILE* varout = init_vars(varpath);
-    FILE* mainout = init_main(mainpath);
+    char fnpath[1024];
+    sprintf(fnpath, "ml-%d-fn.c", getpid());
 
-    procfile(argv[1], varout, mainout);
+    FILE* varfd = init_vars(varpath);
+    FILE* mainfd = init_main(mainpath);
+    FILE* fnfd = fopen(fnpath, "w");
 
-    fclose(varout);
-    close_main(mainout);
+    procfile(argv[1], varfd, mainfd, fnfd);
+
+    fclose(varfd);
+    close_main(mainfd);
+    fclose(fnfd);
 
     char outpath[1024];
     sprintf(outpath, "ml-%d.c", getpid());
 
-    merge_files(varpath, mainpath, outpath);
+    merge_files(varpath, mainpath, fnpath, outpath);
     comp_run(outpath);
 }
