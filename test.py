@@ -80,4 +80,4 @@ for i in range(len(testfiles)):
 
 print('---------------------------------------------------')
 print(f"SCORE: {passes}/{total}")
-print("num of lines: ", count_lines("runml.c"))
+print("num of lines:", count_lines("runml.c"))

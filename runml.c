@@ -87,6 +87,10 @@ char* preprocess(char* line)
 // fail if the variable name is invalid
 void isValidId(char* name)
 {
+    if (!strcmp(name, "function") || !strcmp(name, "print") || !strcmp(name, "return")) {
+        fprintf(stderr, "!reserved keyword '%s' cannot be used as an identifier name", name);
+        exit(EXIT_FAILURE);
+    }
     for (int i = 0; i < (int)strlen(name); i++) {
         if (!islower(name[i]) || i == 12) {
             fprintf(stderr, "!Identifier name '%s' is invalid\n", name);
@@ -162,8 +166,8 @@ void handle_print(char* line, char* var_arr[], int* size, FILE* outfd)
 {
     handle_exp(line, var_arr, size, outfd);
     fprintf(outfd, "if (%s == (int)(%s))\n", line, line);
-	fprintf(outfd, "\tprintf(\"%%.0lf\\n\", %s);\n", line);
-	fprintf(outfd, "else\n\tprintf(\"%%.6lf\\n\", %s);\n\n", line);
+    fprintf(outfd, "\tprintf(\"%%.0lf\\n\", %s);\n", line);
+    fprintf(outfd, "else\n\tprintf(\"%%.6lf\\n\", %s);\n\n", line);
 }
 
 void handle_assignment(char* line, char* var_arr[], int* size, FILE* outfd)
@@ -201,17 +205,17 @@ void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, F
     if (!strcmp(line, ""))
         return;
 
-    if (strncmp(line, "print ", 6) == 0)
+    if (strstr(line, "<-") != NULL) {
+        handle_assignment(line, var_arr, size, varfd);
+    } else if (strncmp(line, "print ", 6) == 0) {
         handle_print(line + 6, var_arr, size, mainfd);
-    else if (strncmp(line, "function ", 9) == 0) {
+    } else if (strncmp(line, "function ", 9) == 0) {
         if (fnfd == NULL) {
             fprintf(stderr, "!nested functions are not allowed\n");
             exit(EXIT_FAILURE);
         }
         handle_fndef(line + 9, infd, varfd, mainfd, fnfd);
-    } else if (strstr(line, "<-") != NULL)
-        handle_assignment(line, var_arr, size, varfd);
-    else if (strncmp(line, "return ", 7) == 0) {
+    } else if (strncmp(line, "return ", 7) == 0) {
         if (fnfd != NULL) {
             fprintf(stderr, "!return statement is not allowed outside function definition\n");
             exit(EXIT_FAILURE);
@@ -247,6 +251,12 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
             break;
 
         buf = strip(buf);
+
+        if (isDefined(buf, local_ids, num_locids)) {
+            fprintf(stderr, "!duplicate variable/parameter name '%s'", buf);
+            exit(EXIT_FAILURE);
+        }
+
         args[strfn.ac++] = buf;
         local_ids[num_locids++] = buf;
     }
