@@ -88,7 +88,7 @@ char* preprocess(char* line)
 void isValidId(char* name)
 {
     if (!strcmp(name, "function") || !strcmp(name, "print") || !strcmp(name, "return")) {
-        fprintf(stderr, "!reserved keyword '%s' cannot be used as an identifier name", name);
+        fprintf(stderr, "!reserved keyword '%s' cannot be used as an identifier name\n", name);
         exit(EXIT_FAILURE);
     }
     for (int i = 0; i < (int)strlen(name); i++) {
@@ -200,6 +200,12 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
 
 void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
 {
+    if (line[0] == '\t' && fnfd != NULL) {
+        fprintf(stderr, "!Indentation ERROR: At line '%s'\n", line);
+        fprintf(stderr, "!Statement outside a function definition is indented\n");
+        exit(EXIT_FAILURE);
+    }
+
     line = preprocess(line);
 
     if (!strcmp(line, ""))
@@ -233,10 +239,8 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
 {
     struct fn strfn;
     char* local_ids[MAX_ID];
-    char* args[MAX_ID];
 
     int num_locids = num_vars;
-    strfn.ac = 0;
 
     for (int i = 0; i < num_vars; i++) {
         local_ids[i] = vars[i];
@@ -253,22 +257,22 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
         buf = strip(buf);
 
         if (isDefined(buf, local_ids, num_locids)) {
-            fprintf(stderr, "!duplicate variable/parameter name '%s'", buf);
+            fprintf(stderr, "!duplicate variable/parameter name '%s'\n", buf);
             exit(EXIT_FAILURE);
         }
 
-        args[strfn.ac++] = buf;
         local_ids[num_locids++] = buf;
     }
     fn_list[num_fns++] = strfn;
+    strfn.ac = num_locids - num_vars;
 
     fprintf(fnfd, "double %s(", strfn.name);
 
     if (strfn.ac > 0) {
         for (int i = 0; i < strfn.ac - 1; i++) {
-            fprintf(fnfd, "double %s, ", args[i]);
+            fprintf(fnfd, "double %s, ", local_ids[i + num_vars]);
         }
-        fprintf(fnfd, "double %s) {\n", args[strfn.ac - 1]);
+        fprintf(fnfd, "double %s) {\n", local_ids[num_locids - 1]);
     } else {
         fprintf(fnfd, ") {\n");
     }
@@ -380,7 +384,7 @@ void runml(char* filename)
 int main(int argc, char* argv[])
 {
     if (argc != 2) {
-        fprintf(stderr, "!Usage:runml [input-file]");
+        fprintf(stderr, "!Usage:runml [input-file]\n");
         exit(EXIT_FAILURE);
     }
 
