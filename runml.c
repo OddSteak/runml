@@ -115,6 +115,7 @@ void handle_fncalls(char* line)
     // assert(false && "handle_fncalls is not implemented yet\n");
 }
 
+// TODO error handling and differentiate between failure and 0 value for strtod
 void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
 {
     line = strip(line);
@@ -126,6 +127,7 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
                 // everything is within the bracket
                 char cont[close];
                 strncpy(cont, line + 1, close - 1);
+                cont[close-1] = 0;
                 handle_exp(cont, var_arr, size, varfd);
                 return;
             } else if (close == (int)strlen(line) - 1) {
@@ -156,8 +158,10 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
     // if strtod failed, we can assume it's an identifier
     if ((strcmp(line, "0") && convert == 0) && !isDefined(line, var_arr, *size)) {
         isValidId(line);
-        var_arr[(*size)++] = line;
-        fprintf(varfd, "double %s = 0.0;\n", line);
+        char* var_name = malloc(strlen(line) + 1);
+        strcpy(var_name, line);
+        var_arr[(*size)++] = var_name;
+        fprintf(varfd, "double %s = 0.0;\n", var_name);
     }
 }
 
@@ -174,10 +178,8 @@ void handle_assignment(char* line, char* var_arr[], int* size, FILE* outfd)
     const char* delim = "<-";
 
     char* var_name = malloc(strlen(line) + 1);
-    char* var_val = malloc(strlen(line) + 1);
-
     strcpy(var_name, strtok(line, delim));
-    strcpy(var_val, strtok(NULL, delim));
+    char* var_val = strtok(NULL, delim);
 
     // invalid syntax if we have multiple arrows
     if (strtok(NULL, delim) != NULL) {
@@ -196,6 +198,7 @@ void handle_assignment(char* line, char* var_arr[], int* size, FILE* outfd)
         fprintf(outfd, "double %s = %s;\n", var_name, var_val);
     } else {
         fprintf(outfd, "%s = %s;\n", var_name, var_val);
+        free(var_name);
     }
 }
 
