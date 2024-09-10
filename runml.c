@@ -4,7 +4,6 @@
 //  Platform:   Linux
 
 // Importing all the the libraries we need
-#include <assert.h>
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -192,8 +191,12 @@ void handle_assignment(char* line, char* var_arr[], int* size, FILE* outfd)
     isValidId(var_name);
 
     handle_exp(var_val, var_arr, size, outfd);
-    var_arr[(*size)++] = var_name;
-    fprintf(outfd, "double %s = %s;\n", var_name, var_val);
+    if (!isDefined(var_name, var_arr, *size)) {
+        var_arr[(*size)++] = var_name;
+        fprintf(outfd, "double %s = %s;\n", var_name, var_val);
+    } else {
+        fprintf(outfd, "%s = %s;\n", var_name, var_val);
+    }
 }
 
 void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd);
@@ -246,7 +249,16 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
         local_ids[i] = vars[i];
     }
 
-    strfn.name = strtok(line, " ");
+    char* fnname = strtok(line, " ");
+    strfn.name = malloc(strlen(fnname) + 1);
+    strcpy(strfn.name, fnname);
+
+    for (int i = 0; i < num_fns; i++) {
+        if (!strcmp(fn_list[i].name, strfn.name)) {
+            fprintf(stderr, "!function '%s' is already defined\n", strfn.name);
+            exit(EXIT_FAILURE);
+        }
+    }
 
     while (true) {
         char* buf = strtok(NULL, " ");
