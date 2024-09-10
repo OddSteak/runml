@@ -275,8 +275,9 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
 
         local_ids[num_locids++] = buf;
     }
-    fn_list[num_fns++] = strfn;
+
     strfn.ac = num_locids - num_vars;
+    fn_list[num_fns++] = strfn;
 
     fprintf(fnfd, "double %s(", strfn.name);
 
