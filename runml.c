@@ -193,7 +193,7 @@ int handle_assignment(char* line, char* var_arr[], int* size, FILE* outfile)
 void handle_fndef(char* line, FILE* outfile)
 {
     assert(false && "handle_function is not implemented yet\n");
-}
+} 
 
 void procline(char* line, char* var_arr[], int* size, FILE* varout, FILE* mainout)
 {

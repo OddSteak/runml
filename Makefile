@@ -11,7 +11,7 @@ builds/runml: runml.c
 
 test: builds/runml
 	@echo "Running tests..."
-	python test.py
+	python3 test.py
 	@echo "Completed tests"
 
 .PHONY: all test runml
