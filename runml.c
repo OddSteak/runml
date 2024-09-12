@@ -11,6 +11,7 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <errno.h>
 
 // TODO delete the generated files before exit_failures before submitting
 // TODO global line count for error messages
@@ -137,7 +138,6 @@ void handle_fncalls(char* line)
     // assert(false && "handle_fncalls is not implemented yet\n");
 }
 
-// TODO error handling and differentiate between failure and 0 value for strtod
 void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
 {
     line = strip(line);
@@ -175,10 +175,12 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
         }
     }
 
-    double convert = strtod(line, NULL);
+    char* endptr;
+    errno = 0;
+    strtod(line, &endptr);
 
     // if strtod failed, we can assume it's an identifier
-    if ((strcmp(line, "0") && convert == 0) && !isDefined(line, var_arr, *size)) {
+    if ((errno != 0 || *endptr != '\0') && !isDefined(line, var_arr, *size)) {
         isValidId(line);
         char* var_name = malloc(strlen(line) + 1);
         strcpy(var_name, line);
@@ -345,13 +347,20 @@ void procfile(char* filename, FILE* varfd, FILE* mainfd, FILE* fnfd)
     }
 }
 
-// TODO check that the arguments are double
 FILE* init_vars(char* varpath, int ac, char** av)
 {
     FILE* varfd = fopen(varpath, "w");
     fputs("#include <stdio.h>\n\n", varfd);
 
     for (int i = 0; i < ac; i++) {
+        char* endptr;
+        errno = 0;
+        strtod(av[i], &endptr);
+        if (errno != 0 || *endptr != '\0') {
+            fprintf(stderr, "!Argument '%s' is not a real number", av[i]);
+            exit(EXIT_FAILURE);
+        }
+
         char* var_name = malloc(1024);
         fprintf(varfd, "double arg%d = %s;\n", i, av[i]);
         snprintf(var_name, 1024, "arg%d", i);
@@ -409,7 +418,6 @@ void merge_files(char* varpath, char* mainpath, char* fnpath, char* outpath)
     unlink(fnpath);
 }
 
-// TODO args support
 // TODO delete the c file and binary after run before submitting
 void runml(char* filename)
 {
