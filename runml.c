@@ -12,6 +12,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+// TODO delete the generated files before exit_failures before submitting
+// TODO global line count for error messages
 // maximum Identifiers a the program will have is 50
 #define MAX_ID 50
 
@@ -168,9 +170,10 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
 void handle_print(char* line, char* var_arr[], int* size, FILE* outfd)
 {
     handle_exp(line, var_arr, size, outfd);
-    fprintf(outfd, "if (%s == (int)(%s))\n", line, line);
-    fprintf(outfd, "\tprintf(\"%%.0lf\\n\", %s);\n", line);
-    fprintf(outfd, "else\n\tprintf(\"%%.6lf\\n\", %s);\n\n", line);
+    fprintf(outfd, "__val__ = %s;\n", line);
+    fprintf(outfd, "if (__val__ == (int)(__val__))\n");
+    fprintf(outfd, "\tprintf(\"%%.0lf\\n\", __val__);\n");
+    fprintf(outfd, "else\n\tprintf(\"%%.6lf\\n\", __val__);\n\n");
 }
 
 void handle_assignment(char* line, char* var_arr[], int* size, FILE* outfd)
@@ -241,6 +244,7 @@ void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, F
     }
 }
 
+// TODO defualt return value 0
 void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
 {
     struct fn strfn;
@@ -269,14 +273,16 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
         if (buf == NULL)
             break;
 
-        buf = strip(buf);
+        char* param = malloc(strlen(buf) + 1);
+        strcpy(param, buf);
+        param = strip(param);
 
-        if (isDefined(buf, local_ids, num_locids)) {
-            fprintf(stderr, "!duplicate variable/parameter name '%s'\n", buf);
+        if (isDefined(param, local_ids, num_locids)) {
+            fprintf(stderr, "!parameter name is already defined '%s'\n", param);
             exit(EXIT_FAILURE);
         }
 
-        local_ids[num_locids++] = buf;
+        local_ids[num_locids++] = param;
     }
 
     strfn.ac = num_locids - num_vars;
@@ -323,6 +329,8 @@ FILE* init_vars(char* varpath)
 {
     FILE* varfd = fopen(varpath, "w");
     fputs("#include <stdio.h>\n\n", varfd);
+    fputs("double __val__;\n", varfd);
+
     return varfd;
 }
 
@@ -372,6 +380,8 @@ void merge_files(char* varpath, char* mainpath, char* fnpath, char* outpath)
     unlink(fnpath);
 }
 
+// TODO args support
+// TODO delete the c file and binary after run before submitting
 void runml(char* filename)
 {
     char binpath[strlen(filename) + 1];
@@ -380,6 +390,8 @@ void runml(char* filename)
     int pid = fork();
 
     if (pid == 0) {
+        // TODO make sure to test with warning flags once the
+        // default return value 0 for functions is implemented
         char* args[] = { "cc", "-o", binpath, filename, NULL };
         execvp(args[0], args);
     } else {
