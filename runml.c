@@ -85,9 +85,29 @@ char* preprocess(char* line)
     return strip(line);
 }
 
+int which_arg(char* name)
+{
+    // not an argument
+    if (strncmp(name, "arg", 3) || strlen(name) <= 3) {
+        return -1;
+    }
+
+    int argcount = atoi(name + 3);
+
+    // atoi faied
+    if (argcount == 0 && strcmp(name + 3, "0")) {
+        return -1;
+    }
+    return argcount;
+}
+
 // fail if the variable name is invalid
 void isValidId(char* name)
 {
+    if (which_arg(name) != -1) {
+        fprintf(stderr, "!identifiers of the form arg<number> are reserved for arguments\n");
+        exit(EXIT_FAILURE);
+    }
     if (!strcmp(name, "function") || !strcmp(name, "print") || !strcmp(name, "return")) {
         fprintf(stderr, "!reserved keyword '%s' cannot be used as an identifier name\n", name);
         exit(EXIT_FAILURE);
@@ -325,10 +345,19 @@ void procfile(char* filename, FILE* varfd, FILE* mainfd, FILE* fnfd)
     }
 }
 
-FILE* init_vars(char* varpath)
+// TODO check that the arguments are double
+FILE* init_vars(char* varpath, int ac, char** av)
 {
     FILE* varfd = fopen(varpath, "w");
     fputs("#include <stdio.h>\n\n", varfd);
+
+    for (int i = 0; i < ac; i++) {
+        char* var_name = malloc(1024);
+        fprintf(varfd, "double arg%d = %s;\n", i, av[i]);
+        snprintf(var_name, 1024, "arg%d", i);
+        vars[num_vars++] = var_name;
+    }
+
     fputs("double __val__;\n", varfd);
 
     return varfd;
@@ -411,7 +440,7 @@ void runml(char* filename)
 // main function takes 1 arg which is file name
 int main(int argc, char* argv[])
 {
-    if (argc != 2) {
+    if (argc < 2) {
         fprintf(stderr, "!Usage:runml [input-file]\n");
         exit(EXIT_FAILURE);
     }
@@ -426,7 +455,7 @@ int main(int argc, char* argv[])
     char fnpath[1024];
     sprintf(fnpath, "ml-%d-fn.c", pid);
 
-    FILE* varfd = init_vars(varpath);
+    FILE* varfd = init_vars(varpath, argc - 2, &argv[2]);
     FILE* mainfd = init_main(mainpath);
     FILE* fnfd = fopen(fnpath, "w");
 
