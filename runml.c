@@ -133,7 +133,7 @@ bool isDefined(char* name, char* var_arr[], int size)
 }
 
 void handle_fncalls(char* line)
-{   
+{
     for (int i = 0; i < strlen(line); i++){
         if (line[i] == '('){
             break; }
@@ -155,11 +155,11 @@ void handle_fncalls(char* line)
         int fn_ac = fn_list[fn_index].ac;
 
     for(int j = 0; j < fn_ac; j++){
-        // i still holds the index for the first bracket so parameter can be start 
+        // i still holds the index for the first bracket so parameter can be start
         for(int k = (i); k < strlen(line); k++){
             if (line[k] == '(') {
             k += bracks(&line[k]);}
-        
+
             if (line[k] == ',' || line[k] == ')'){
             char exp[k + 1];
             strncpy(exp, line, k);
@@ -267,8 +267,40 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
 
 void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
 {
-    assert(false && "handle_function is not implemented yet\n");
-} 
+    if (line[0] == '\t' && fnfd != NULL) {
+        fprintf(stderr, "!Indentation ERROR: At line '%s'\n", line);
+        fprintf(stderr, "!Statement outside a function definition is indented\n");
+        exit(EXIT_FAILURE);
+    }
+
+    line = preprocess(line);
+
+    if (!strcmp(line, ""))
+        return;
+
+    if (strstr(line, "<-") != NULL) {
+        handle_assignment(line, var_arr, size, varfd);
+    } else if (strncmp(line, "print ", 6) == 0) {
+        handle_print(line + 6, var_arr, size, mainfd);
+    } else if (strncmp(line, "function ", 9) == 0) {
+        if (fnfd == NULL) {
+            fprintf(stderr, "!nested functions are not allowed\n");
+            exit(EXIT_FAILURE);
+        }
+        handle_fndef(line + 9, infd, varfd, mainfd, fnfd);
+    } else if (strncmp(line, "return ", 7) == 0) {
+        if (fnfd != NULL) {
+            fprintf(stderr, "!return statement is not allowed outside function definition\n");
+            exit(EXIT_FAILURE);
+        }
+
+        handle_exp(line + 7, var_arr, size, varfd);
+        fprintf(mainfd, "%s;\n", line);
+    } else {
+        handle_exp(line, var_arr, size, varfd);
+        fprintf(mainfd, "%s;\n", line);
+    }
+}
 
 // TODO defualt return value 0
 void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
