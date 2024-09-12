@@ -1,6 +1,6 @@
 function n1 a b
 	print 5 + b + a
-	print arg0 + arg3
+	print arg0
 	return 87
 #
 # 13
