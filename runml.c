@@ -310,20 +310,14 @@ void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, F
         }
         handle_fndef(line + 9, infd, varfd, mainfd, fnfd);
     } else if (strncmp(line, "return ", 7) == 0) {
-        if (fnfd != NULL) {
-            fprintf(stderr, "!return statement is not allowed outside function definition\n");
-            exit(EXIT_FAILURE);
-        }
-
-        handle_exp(line + 7, var_arr, size, varfd);
-        fprintf(mainfd, "%s;\n", line);
+        fprintf(stderr, "!return statement is not allowed outside function definition\n");
+        exit(EXIT_FAILURE);
     } else {
         handle_exp(line, var_arr, size, varfd);
         fprintf(mainfd, "%s;\n", line);
     }
 }
 
-// TODO defualt return value 0
 void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
 {
     struct fn strfn;
@@ -379,12 +373,24 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
     }
 
     char buf[BUFSIZ];
+    // used to track if the function has a return statement
+    bool ret = false;
     while (fgets(buf, BUFSIZ, infd) != NULL) {
         // leave the function if the next line doesn't start with a tab
         if (buf[0] != '\t') {
+            // return 0.0 by default if the function doesn't have a return statement
+            if (!ret)
+                fprintf(fnfd, "return 0.0;\n");
             fprintf(fnfd, "}\n\n");
             procline(buf, vars, &num_vars, infd, varfd, mainfd, fnfd);
             return;
+        }
+
+        if (!strncmp(buf, "\treturn ", 8)) {
+            ret = true;
+            handle_exp(buf + 8, local_ids, &num_locids, fnfd);
+            fprintf(fnfd, "return %s;\n", buf + 7);
+            continue;
         }
 
         // passing NULL for fnfd to indicate that we are inside a function
@@ -484,9 +490,8 @@ void runml(char* filename)
     int pid = fork();
 
     if (pid == 0) {
-        // TODO make sure to test with warning flags once the
-        // default return value 0 for functions is implemented
-        char* args[] = { "cc", "-o", binpath, filename, NULL };
+        // TODO remove -Wall flag before submitting
+        char* args[] = { "cc", "-Wall", "-o", binpath, filename, NULL };
         execvp(args[0], args);
     } else {
         wait(&pid);
