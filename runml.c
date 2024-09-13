@@ -138,24 +138,25 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
     char call[strlen(line) + 1];
     strcpy(call, line);
     call[strlen(call) - 1] = 0;
-    int i = 0;
-    for (i = 0; i < (int)strlen(call); i++) {
-        if (call[i] == '(') {
+
+    int opbrack;
+    for (opbrack = 0; opbrack < (int)strlen(call); opbrack++) {
+        if (call[opbrack] == '(') {
             break;
         }
     }
 
-    char buf[i + 1];
-    char* name = buf;
-    strncpy(buf, call, i);
-    name[i] = '\0';
-    name = strip(name);
+    char buf[opbrack + 1];
+    char* fn_name = buf;
+    strncpy(buf, call, opbrack);
+    fn_name[opbrack] = '\0';
+    fn_name = strip(fn_name);
 
     for (int j = 0; j < num_fns; j++) {
-        if (strcmp(fn_list[j].name, buf) == 0) {
+        if (strcmp(fn_list[j].name, fn_name) == 0) {
             int fn_ac = fn_list[j].ac;
-            int l = i + 1;
-            int k = i + 1;
+            int l = opbrack + 1;
+            int k = opbrack + 1;
             int args = 0;
 
             for (; k < (int)strlen(call) + 1; k++) {
@@ -190,7 +191,7 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
         }
     }
 
-    fprintf(stderr, "!function name '%s' not found", name);
+    fprintf(stderr, "!function name '%s' not found", fn_name);
 }
 
 void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
