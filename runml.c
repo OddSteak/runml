@@ -169,9 +169,8 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
                     strncpy(exp, call + l, k - l);
                     exp[k - l] = '\0';
 
-                    if (!strcmp(strip(exp), "")) {
+                    if (!strcmp(strip(exp), ""))
                         break;
-                    }
 
                     args++;
                     handle_exp(exp, var_arr, size, varfd);
@@ -380,7 +379,7 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
     char buf[BUFSIZ];
     while (fgets(buf, BUFSIZ, infd) != NULL) {
         // leave the function if it's not an empty/comment line and doesn't start with a tab
-        if (buf[0] != '\t' && strcmp(preprocess(buf), "")) {
+        if (buf[0] != '\t') {
             fprintf(fnfd, "}\n\n");
             procline(buf, vars, &num_vars, infd, varfd, mainfd, fnfd);
             return;
