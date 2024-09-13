@@ -170,9 +170,9 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
             }
 
             if (call[k] == ',' || call[k] == ')') {
-                char exp[k - l];
-                strncpy(exp, call + l, k - l - 1);
-                exp[k - l - 1] = '\0';
+                char exp[k - l + 1];
+                strncpy(exp, call + l, k - l);
+                exp[k - l] = '\0';
                 printf("exp was called with %s\n", exp);
                 handle_exp(exp, var_arr, size, varfd);
                 l = k;
