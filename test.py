@@ -7,6 +7,9 @@ def run_file(mlfile, expfile):
     command = ['builds/runml', mlfile]
 
     args = []
+    if os.path.isfile(mlfile + '.err'):
+        return True
+
     if os.path.isfile(mlfile + '.args'):
         with open(mlfile + '.args', 'r') as argfile:
             args = argfile.read().strip().split(' ')

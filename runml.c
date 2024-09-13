@@ -359,8 +359,8 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
 
     char buf[BUFSIZ];
     while (fgets(buf, BUFSIZ, infd) != NULL) {
-        if (buf[0] != '\t') {
-            // leaving the function
+        // leave the function if it's not an empty/comment line and doesn't start with a tab
+        if (buf[0] != '\t' && strcmp(preprocess(buf), "")) {
             fprintf(fnfd, "}\n\n");
             procline(buf, vars, &num_vars, infd, varfd, mainfd, fnfd);
             return;
