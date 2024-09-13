@@ -94,11 +94,11 @@ int which_arg(char* name)
         return -1;
     }
 
-    int argcount = atoi(name + 3);
+    char* endptr = name + 3;
+    int argcount = strtol(name + 3, &endptr, 10);
 
-    // TODO check properly if atoi failed
-    // atoi faied
-    if (argcount == 0 && strcmp(name + 3, "0")) {
+    if (*endptr != '\0') {
+        // strtol faied
         return -1;
     }
     return argcount;
