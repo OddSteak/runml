@@ -144,53 +144,53 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
             break;
         }
     }
-    // TODO strip fn_name
+
     char buf[i + 1];
     char* name = buf;
     strncpy(buf, call, i);
     name[i] = '\0';
     name = strip(name);
 
-    int fn_index = -1;
     for (int j = 0; j < num_fns; j++) {
         if (strcmp(fn_list[j].name, buf) == 0) {
-            fn_index = j;
-            break;
-        }
-    }
-    if (fn_index == -1) {
-        printf("Function name %s is an not found\n", buf);
-        exit(EXIT_FAILURE);
-    }
-    int fn_ac = fn_list[fn_index].ac;
-    int l = i + 1;
-    int k = i + 1;
-    for (int j = 0; j < fn_ac; j++) {
-        // i still holds the index for the first bracket so parameter can be start
+            int fn_ac = fn_list[j].ac;
+            int l = i + 1;
+            int k = i + 1;
+            int args = 0;
 
-        if (k >= strlen(call)) {
-            fprintf(stderr, "!too few arguments\n");
-            exit(EXIT_FAILURE);
-        }
-        for (; k < (int)strlen(call) + 1; k++) {
-            if (call[k] == '(') {
-                k += bracks(&call[k]) + 1;
+            for (; k < (int)strlen(call) + 1; k++) {
+                if (call[k] == '(') {
+                    k += bracks(&call[k]) + 1;
+                }
+
+                if (call[k] == ',' || call[k] == 0) {
+                    char exp[k - l + 1];
+                    strncpy(exp, call + l, k - l);
+                    exp[k - l] = '\0';
+
+                    if (!strcmp(strip(exp), "")) {
+                        break;
+                    }
+
+                    args++;
+                    handle_exp(exp, var_arr, size, varfd);
+                    l = k + 1;
+                }
             }
 
-            if (call[k] == ',' || call[k] == 0) {
-                char exp[k - l + 1];
-                strncpy(exp, call + l, k - l);
-                exp[k - l] = '\0';
-                handle_exp(exp, var_arr, size, varfd);
-                l = ++k ;
-                break;
+            if (args > fn_ac) {
+                fprintf(stderr, "!too many arguments for '%s'\n", line);
+                exit(EXIT_FAILURE);
             }
+            if (args < fn_ac) {
+                fprintf(stderr, "!too few arguments for '%s'\n", line);
+                exit(EXIT_FAILURE);
+            }
+            return;
         }
     }
-    if (k < strlen(call)) {
-        fprintf(stderr, "!too many arguments\n");
-        exit(EXIT_FAILURE);
-    }
+
+    fprintf(stderr, "!function name '%s' not found", name);
 }
 
 void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
