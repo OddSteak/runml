@@ -133,8 +133,8 @@ bool isDefined(char* name, char* var_arr[], int size)
 }
 
 void handle_fncalls(char* line)
-{
-    for (int i = 0; i < strlen(line); i++){
+{   int i =0;
+    for ( i = 0; i < strlen(line); i++){
         if (line[i] == '('){
             break; }
     }
