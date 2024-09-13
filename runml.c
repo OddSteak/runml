@@ -132,7 +132,7 @@ bool isDefined(char* name, char* var_arr[], int size)
     return false;
 }
 
-void handle_fncalls(char* line)
+void handle_fncalls(char* line,char* var_arr[], int* size, FILE* varfd)
 {   int i =0;
     for ( i = 0; i < strlen(line); i++){
         if (line[i] == '('){
@@ -156,15 +156,15 @@ void handle_fncalls(char* line)
 
     for(int j = 0; j < fn_ac; j++){
         // i still holds the index for the first bracket so parameter can be start
-        for(int k = (i); k < strlen(line); k++){
+        for(int k = (i+1); k < strlen(line); k++){
             if (line[k] == '(') {
-            k += bracks(&line[k]);}
+            k += bracks(&line[k])+1;}
 
             if (line[k] == ',' || line[k] == ')'){
             char exp[k + 1];
             strncpy(exp, line, k);
             exp[k] = '\0';
-            handle_exp(exp);
+            handle_exp(exp, var_arr, size, varfd);
             k += 1;  // Update start_index to the next character after ',' or ')'
             break;
 
@@ -191,7 +191,7 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
             } else if (close == (int)strlen(line) - 1) {
                 // this is fucntion call since the opening brack doesn't
                 // start at 0 but ends at the end
-                handle_fncalls(line);
+                handle_fncalls( line, var_arr, size, varfd);
                 return;
             }
 
