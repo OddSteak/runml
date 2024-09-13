@@ -15,6 +15,7 @@
 
 // TODO delete the generated files before exit_failures before submitting
 // TODO global line count for error messages
+// TODO remove magic numbers
 // maximum Identifiers a the program will have is 50
 #define MAX_ID 50
 
@@ -95,6 +96,7 @@ int which_arg(char* name)
 
     int argcount = atoi(name + 3);
 
+    // TODO check properly if atoi failed
     // atoi faied
     if (argcount == 0 && strcmp(name + 3, "0")) {
         return -1;
@@ -378,7 +380,7 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
 
     char buf[BUFSIZ];
     while (fgets(buf, BUFSIZ, infd) != NULL) {
-        // leave the function if it's not an empty/comment line and doesn't start with a tab
+        // leave the function if the next line doesn't start with a tab
         if (buf[0] != '\t') {
             fprintf(fnfd, "}\n\n");
             procline(buf, vars, &num_vars, infd, varfd, mainfd, fnfd);
