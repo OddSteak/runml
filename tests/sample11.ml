@@ -7,15 +7,13 @@ function fn1
 	rt <- 1
 	print rt + r
 
-fn2()
-
-function fn2 a
+function fn2 a b
 	r <- 901
 	rt <- 1
 	print rt + r * rty + a
 	print rty
 
-fn2(4)
+fn2(4, 7)
 
 function fn3 a
 	r <- 901
