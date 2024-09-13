@@ -160,11 +160,12 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
         exit(EXIT_FAILURE);
     }
     int fn_ac = fn_list[fn_index].ac;
-
+    int l = i + 1;
+    int k = i +1;
     for (int j = 0; j < fn_ac; j++) {
         // i still holds the index for the first bracket so parameter can be start
-        int l = i + 1;
-        for (int k = (i + 1); k < (int)strlen(call); k++) {
+        
+        for (; k < (int)strlen(call); k++) {
             if (call[k] == '(') {
                 k += bracks(&call[k]) + 1;
             }
@@ -175,7 +176,7 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
                 exp[k - l] = '\0';
                 printf("exp was called with %s\n", exp);
                 handle_exp(exp, var_arr, size, varfd);
-                l = k;
+                l = ++k ;
                 break;
             }
         }
