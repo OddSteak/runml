@@ -173,8 +173,14 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
                     strncpy(exp, call + l, k - l);
                     exp[k - l] = '\0';
 
-                    if (!strcmp(strip(exp), ""))
+                    // empty argument is only allowed if no arguments are passed
+                    if (!strcmp(strip(exp), "")) {
+                        if (args != 0 || strcmp(strip(call + l), "")) {
+                            fprintf(stderr, "!empty argument in function call '%s'\n", call);
+                            exit(EXIT_FAILURE);
+                        }
                         break;
+                    }
 
                     args++;
                     handle_exp(exp, var_arr, size, varfd);
