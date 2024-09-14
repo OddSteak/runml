@@ -26,9 +26,9 @@ def run_file(mlfile, expfile):
 
     if out.strip() != expout.strip():
         print(f"{mlfile}: {expfile}\n\tFailed\n")
-        print("\tExpected:\n\t\t", expout.replace("\n", "\n\t\t"))
+        print("\tExpected:\n\t\t", expout.replace("\n", "\n\t\t"), sep="")
         print()
-        print("\tGot:\n\t\t\n", result.stdout.strip().replace("\n", "\n\t\t"))
+        print("\tGot:\n\t\t", result.stdout.strip().replace("\n", "\n\t\t"), sep="")
         print()
         passed = False
     else:

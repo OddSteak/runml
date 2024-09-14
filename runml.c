@@ -19,7 +19,7 @@
 // maximum Identifiers a the program will have is 50
 #define MAX_ID 50
 
-// defines the stucture of fn which hold the name and the number of aruments a function has will use these to process funvctions
+// defines the stucture of fn which hold the name and the number of aruments a function has will use these to process functions
 struct fn {
     char* name;
     int ac;
@@ -87,27 +87,28 @@ char* preprocess(char* line)
     return strip(line);
 }
 
-int which_arg(char* name)
+bool is_arg(char* name)
 {
     // not an argument
     if (strncmp(name, "arg", 3) || strlen(name) <= 3) {
-        return -1;
+        return false;
     }
 
     char* endptr = name + 3;
-    int argcount = strtol(name + 3, &endptr, 10);
+    errno = 0;
+    strtol(name + 3, &endptr, 10);
 
-    if (*endptr != '\0') {
+    if (errno != 0 || *endptr != '\0') {
         // strtol faied
-        return -1;
+        return false;
     }
-    return argcount;
+    return true;
 }
 
 // fail if the variable name is invalid
-void isValidId(char* name)
+void validate_ids(char* name)
 {
-    if (which_arg(name) != -1) {
+    if (is_arg(name)) {
         fprintf(stderr, "!identifiers of the form arg<number> are reserved for arguments\n");
         exit(EXIT_FAILURE);
     }
@@ -123,7 +124,8 @@ void isValidId(char* name)
     }
 }
 
-bool isDefined(char* name, char* var_arr[], int size)
+// return true if the identifier name is defined in the list of identifiers var_arr
+bool is_defined(char* name, char* var_arr[], int size)
 {
     for (int i = 0; i < size; i++) {
         if (strcmp(var_arr[i], name) == 0) {
@@ -181,18 +183,18 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
             }
 
             if (args > fn_ac) {
-                fprintf(stderr, "!too many arguments for '%s'\n", line);
+                fprintf(stderr, "!too many arguments in function call '%s'\n", line);
                 exit(EXIT_FAILURE);
             }
             if (args < fn_ac) {
-                fprintf(stderr, "!too few arguments for '%s'\n", line);
+                fprintf(stderr, "!too few arguments in function call '%s'\n", line);
                 exit(EXIT_FAILURE);
             }
             return;
         }
     }
 
-    fprintf(stderr, "!function name '%s' not found", fn_name);
+    fprintf(stderr, "!function '%s' is not defined", fn_name);
 }
 
 void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
@@ -237,8 +239,8 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
     strtod(line, &endptr);
 
     // if strtod failed, we can assume it's an identifier
-    if ((errno != 0 || *endptr != '\0') && !isDefined(line, var_arr, *size)) {
-        isValidId(line);
+    if ((errno != 0 || *endptr != '\0') && !is_defined(line, var_arr, *size)) {
+        validate_ids(line);
         char* var_name = malloc(strlen(line) + 1);
         strcpy(var_name, line);
         var_arr[(*size)++] = var_name;
@@ -272,10 +274,10 @@ void handle_assignment(char* line, char* var_arr[], int* size, FILE* outfd)
     var_name = strip(var_name);
     var_val = strip(var_val);
 
-    isValidId(var_name);
+    validate_ids(var_name);
 
     handle_exp(var_val, var_arr, size, outfd);
-    if (!isDefined(var_name, var_arr, *size)) {
+    if (!is_defined(var_name, var_arr, *size)) {
         var_arr[(*size)++] = var_name;
         fprintf(outfd, "double %s = %s;\n", var_name, var_val);
     } else {
@@ -290,7 +292,7 @@ void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, F
 {
     if (line[0] == '\t' && fnfd != NULL) {
         fprintf(stderr, "!Indentation ERROR: At line '%s'\n", line);
-        fprintf(stderr, "!Statement outside a function definition is indented\n");
+        fprintf(stderr, "!Statement outside a function definition must not be indented\n");
         exit(EXIT_FAILURE);
     }
 
@@ -350,7 +352,7 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
         strcpy(param, buf);
         param = strip(param);
 
-        if (isDefined(param, local_ids, num_locids)) {
+        if (is_defined(param, local_ids, num_locids)) {
             fprintf(stderr, "!parameter name is already defined '%s'\n", param);
             exit(EXIT_FAILURE);
         }
@@ -375,7 +377,7 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
     char buf[BUFSIZ];
     // used to track if the function has a return statement
     bool ret = false;
-    while (fgets(buf, BUFSIZ, infd) != NULL) {
+    while (fgets(buf, sizeof buf, infd) != NULL) {
         // leave the function if the next line doesn't start with a tab
         if (buf[0] != '\t') {
             // return 0.0 by default if the function doesn't have a return statement
@@ -389,7 +391,7 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
         if (!strncmp(buf, "\treturn ", 8)) {
             ret = true;
             handle_exp(buf + 8, local_ids, &num_locids, fnfd);
-            fprintf(fnfd, "return %s;\n", buf + 7);
+            fprintf(fnfd, "return %s;\n", buf + 8);
             continue;
         }
 
@@ -405,7 +407,7 @@ void procfile(char* filename, FILE* varfd, FILE* mainfd, FILE* fnfd)
     FILE* infd = fopen(filename, "r");
     char line[BUFSIZ];
 
-    while (fgets(line, BUFSIZ, infd) != NULL) {
+    while (fgets(line, sizeof line, infd) != NULL) {
         procline(line, vars, &num_vars, infd, varfd, mainfd, fnfd);
     }
 }
@@ -439,7 +441,7 @@ FILE* init_main(char* mainpath)
 {
     FILE* mainfd = fopen(mainpath, "w");
 
-    fputs("int main(int ac, char *av[]) {\n", mainfd);
+    fputs("int main() {\n", mainfd);
     return mainfd;
 }
 
@@ -458,17 +460,17 @@ void merge_files(char* varpath, char* mainpath, char* fnpath, char* outpath)
 
     char buf[BUFSIZ];
 
-    while (fgets(buf, BUFSIZ, varfd) != NULL)
+    while (fgets(buf, sizeof buf, varfd) != NULL)
         fputs(buf, outfd);
 
     fputs("\n", outfd);
 
-    while (fgets(buf, BUFSIZ, fnfd) != NULL)
+    while (fgets(buf, sizeof buf, fnfd) != NULL)
         fputs(buf, outfd);
 
     fputs("\n", outfd);
 
-    while (fgets(buf, BUFSIZ, mainfd) != NULL)
+    while (fgets(buf, sizeof buf, mainfd) != NULL)
         fputs(buf, outfd);
 
     fclose(varfd);
