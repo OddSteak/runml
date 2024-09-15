@@ -19,6 +19,7 @@
 // maximum Identifiers a the program will have is 50
 #define MAX_ID 50
 
+int line_count = 0;
 // defines the stucture of fn which hold the name and the number of aruments a function has will use these to process functions
 struct fn {
     char* name;
@@ -265,15 +266,19 @@ void handle_print(char* line, char* var_arr[], int* size, FILE* outfd)
 
 void handle_assignment(char* line, char* var_arr[], int* size, FILE* varfd, FILE* mainfd)
 {
+    char* token;
     const char* delim = "<-";
 
+    token = strstr(line, delim);
+    *token = 0;
+
     char* var_name = malloc(strlen(line) + 1);
-    strcpy(var_name, strtok(line, delim));
-    char* var_val = strtok(NULL, delim);
+    strcpy(var_name, line);
+    char* var_val = token + strlen(delim);
 
     // invalid syntax if we have multiple arrows
-    if (strtok(NULL, delim) != NULL) {
-        fprintf(stderr, "!multiple arrows are not allowed in assignment statement\n");
+    if (strstr(var_val, delim) != NULL) {
+        fprintf(stderr, "!line: %d, multiple arrows are not allowed in assignment statement\n", line_count);
         exit(EXIT_FAILURE);
     }
 
@@ -382,6 +387,7 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
     // used to track if the function has a return statement
     bool ret = false;
     while (fgets(buf, sizeof buf, infd) != NULL) {
+        line_count++;
         // leave the function if the next line doesn't start with a tab
         if (buf[0] != '\t') {
             // return 0.0 by default if the function doesn't have a return statement
@@ -412,6 +418,7 @@ void procfile(char* filename, FILE* varfd, FILE* mainfd, FILE* fnfd)
     char line[BUFSIZ];
 
     while (fgets(line, sizeof line, infd) != NULL) {
+        line_count++;
         procline(line, vars, &num_vars, infd, varfd, mainfd, fnfd);
     }
 }
