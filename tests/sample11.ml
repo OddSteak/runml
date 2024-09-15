@@ -1,5 +1,6 @@
 new <- 8.999
 
+new <- new + 1
 print new
 
 function fn1

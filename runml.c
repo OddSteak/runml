@@ -263,7 +263,7 @@ void handle_print(char* line, char* var_arr[], int* size, FILE* outfd)
     fprintf(outfd, "else\n\tprintf(\"%%.6lf\\n\", __val__);\n\n");
 }
 
-void handle_assignment(char* line, char* var_arr[], int* size, FILE* outfd)
+void handle_assignment(char* line, char* var_arr[], int* size, FILE* varfd, FILE* mainfd)
 {
     const char* delim = "<-";
 
@@ -282,14 +282,12 @@ void handle_assignment(char* line, char* var_arr[], int* size, FILE* outfd)
 
     validate_ids(var_name);
 
-    handle_exp(var_val, var_arr, size, outfd);
+    handle_exp(var_val, var_arr, size, varfd);
     if (!is_defined(var_name, var_arr, *size)) {
         var_arr[(*size)++] = var_name;
-        fprintf(outfd, "double %s = %s;\n", var_name, var_val);
-    } else {
-        fprintf(outfd, "%s = %s;\n", var_name, var_val);
-        free(var_name);
+        fprintf(varfd, "double %s;\n", var_name);
     }
+    fprintf(mainfd, "%s = %s;\n", var_name, var_val);
 }
 
 void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd);
@@ -308,7 +306,7 @@ void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, F
         return;
 
     if (strstr(line, "<-") != NULL) {
-        handle_assignment(line, var_arr, size, varfd);
+        handle_assignment(line, var_arr, size, varfd, mainfd);
     } else if (strncmp(line, "print ", 6) == 0) {
         handle_print(line + 6, var_arr, size, mainfd);
     } else if (strncmp(line, "function ", 9) == 0) {
