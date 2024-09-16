@@ -147,7 +147,7 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
         }
     }
     // it's not a function call if there are no brackets or the first opening bracket doesn't close at the end
-    if (opbrack == (int)strlen(line) || bracks(line + opbrack) != (int)strlen(line + opbrack) - 1) {
+    if (opbrack == 0 || opbrack == (int)strlen(line) || bracks(line + opbrack) != (int)strlen(line + opbrack) - 1) {
         fprintf(stderr, "!Syntax ERROR: Line %d - unrecognized statement '%s'", line_count, line);
         exit(EXIT_FAILURE);
     }
@@ -327,9 +327,6 @@ void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, F
     } else if (strncmp(line, "return ", 7) == 0) {
         fprintf(stderr, "!return statement is not allowed outside function definition\n");
         exit(EXIT_FAILURE);
-    } else if (line[0] == '(') {
-        handle_exp(line, var_arr, size, varfd);
-        fprintf(mainfd, "%s;\n", line);
     } else {
         handle_fncalls(line, var_arr, size, varfd);
         fprintf(mainfd, "%s;\n", line);
