@@ -194,12 +194,8 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
                 }
             }
 
-            if (args > fn_ac) {
-                fprintf(stderr, "!too many arguments in function call '%s'\n", line);
-                exit(EXIT_FAILURE);
-            }
             if (args < fn_ac) {
-                fprintf(stderr, "!too few arguments in function call '%s'\n", line);
+                fprintf(stderr, "!expect at least %d arguments in function call '%s'\n", fn_ac, line);
                 exit(EXIT_FAILURE);
             }
             return;
