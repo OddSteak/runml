@@ -57,7 +57,7 @@ int bracks(char* brack)
 char* strip(char* line)
 {
     // first loop removes the leading empty space
-    for (int i = 0; i < (int)strlen(line); i++) {
+    for (int i = 0; i <= (int)strlen(line); i++) {
         if (line[i] != ' ' && line[i] != '\t') {
             line += i;
             break;
@@ -300,13 +300,15 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
 void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
 {
     if (line[0] == '\t' && fnfd != NULL) {
-        fprintf(stderr, "!Indentation ERROR: At line '%s'\n", line);
+        fprintf(stderr, "!Indentation ERROR: At line %d\n", line_count);
         fprintf(stderr, "!Statement outside a function definition must not be indented\n");
         exit(EXIT_FAILURE);
     }
-
+    if (!strcmp(strip(line), "")) {
+        fprintf(stderr, "!ERROR: line %d is empty", line_count);
+        exit(EXIT_FAILURE);
+    }
     line = preprocess(line);
-
     if (!strcmp(line, ""))
         return;
 

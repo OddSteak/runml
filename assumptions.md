@@ -1,7 +1,7 @@
 # Assumptions
 
 - whitespace is allowed everywhere
-- empty lines are allowed
+- empty lines are not allowed
 - tab character at the start of the line is only allowed in functions
 - over indentation is allowed
 - names of the form arg<number> cannot be reassigned or used as new identifiers even if they are not supplied
