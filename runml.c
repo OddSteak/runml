@@ -17,7 +17,6 @@
 // TODO delete the generated files before exit_failures before submitting
 // TODO global line count for error messages
 // TODO remove magic numbers
-// TODO throw error on fn and var names clashing (both ways)
 // maximum Identifiers a the program will have is 50
 #define MAX_ID 50
 
@@ -26,6 +25,13 @@ int line_count = 0;
 struct fn {
     char* name;
     int ac;
+};
+
+struct fds {
+    FILE* infd;
+    FILE* varfd;
+    FILE* mainfd;
+    FILE* fnfd;
 };
 // fn_list is a list of the stuctures for function so we can track them, num_fns is used to track the number of function we have in the program
 struct fn fn_list[MAX_ID];
@@ -280,16 +286,16 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
     }
 }
 
-void handle_print(char* line, char* var_arr[], int* size, FILE* varfd, FILE* mainfd)
+void handle_print(char* line, char* var_arr[], int* size, struct fds fdlist)
 {
-    handle_exp(line, var_arr, size, varfd);
-    fprintf(mainfd, "__val__ = %s;\n", line);
-    fprintf(mainfd, "if (__val__ == (int)(__val__))\n");
-    fprintf(mainfd, "\tprintf(\"%%.0lf\\n\", __val__);\n");
-    fprintf(mainfd, "else\n\tprintf(\"%%.6lf\\n\", __val__);\n\n");
+    handle_exp(line, var_arr, size, fdlist.varfd);
+    fprintf(fdlist.mainfd, "__val__ = %s;\n", line);
+    fprintf(fdlist.mainfd, "if (__val__ == (int)(__val__))\n");
+    fprintf(fdlist.mainfd, "\tprintf(\"%%.0lf\\n\", __val__);\n");
+    fprintf(fdlist.mainfd, "else\n\tprintf(\"%%.6lf\\n\", __val__);\n\n");
 }
 
-void handle_assignment(char* line, char* var_arr[], int* size, FILE* varfd, FILE* mainfd)
+void handle_assignment(char* line, char* var_arr[], int* size, struct fds fdlist)
 {
     const char* delim = "<-";
 
@@ -311,23 +317,23 @@ void handle_assignment(char* line, char* var_arr[], int* size, FILE* varfd, FILE
 
     validate_id(var_name);
 
-    handle_exp(var_val, var_arr, size, varfd);
+    handle_exp(var_val, var_arr, size, fdlist.varfd);
     if (!is_var_defined(var_name, var_arr, *size)) {
         if (is_fn_defined(var_name)) {
             fprintf(stderr, "!ERROR: line %d - identifier already defined as a function '%s'", line_count, var_name);
             exit(EXIT_FAILURE);
         }
         var_arr[(*size)++] = var_name;
-        fprintf(varfd, "double %s;\n", var_name);
+        fprintf(fdlist.varfd, "double %s;\n", var_name);
     }
-    fprintf(mainfd, "%s = %s;\n", var_name, var_val);
+    fprintf(fdlist.mainfd, "%s = %s;\n", var_name, var_val);
 }
 
-void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd);
+void handle_fndef(char* line, struct fds fdlist);
 
-void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
+void procline(char* line, char* var_arr[], int* size, struct fds fdlist)
 {
-    if (line[0] == '\t' && fnfd != NULL) {
+    if (line[0] == '\t' && fdlist.fnfd != NULL) {
         fprintf(stderr, "!Indentation ERROR: At line %d\n", line_count);
         fprintf(stderr, "!Statement outside a function definition must not be indented\n");
         exit(EXIT_FAILURE);
@@ -341,25 +347,25 @@ void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, F
         return;
 
     if (strstr(line, "<-") != NULL) {
-        handle_assignment(line, var_arr, size, varfd, mainfd);
+        handle_assignment(line, var_arr, size, fdlist);
     } else if (strncmp(line, "print ", 6) == 0) {
-        handle_print(line + 6, var_arr, size, varfd, mainfd);
+        handle_print(line + 6, var_arr, size, fdlist);
     } else if (strncmp(line, "function ", 9) == 0) {
-        if (fnfd == NULL) {
+        if (fdlist.fnfd == NULL) {
             fprintf(stderr, "!nested functions are not allowed\n");
             exit(EXIT_FAILURE);
         }
-        handle_fndef(line + 9, infd, varfd, mainfd, fnfd);
+        handle_fndef(line + 9, fdlist);
     } else if (strncmp(line, "return ", 7) == 0) {
         fprintf(stderr, "!return statement is not allowed outside function definition\n");
         exit(EXIT_FAILURE);
     } else {
-        handle_fncalls(line, var_arr, size, varfd);
-        fprintf(mainfd, "%s;\n", line);
+        handle_fncalls(line, var_arr, size, fdlist.varfd);
+        fprintf(fdlist.mainfd, "%s;\n", line);
     }
 }
 
-void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
+void handle_fndef(char* line, struct fds fdlist)
 {
     struct fn strfn;
     char* local_ids[MAX_ID];
@@ -402,94 +408,95 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
     strfn.ac = num_locids - num_vars;
     fn_list[num_fns++] = strfn;
 
-    fprintf(fnfd, "double %s(", strfn.name);
+    fprintf(fdlist.fnfd, "double %s(", strfn.name);
 
     if (strfn.ac > 0) {
         for (int i = 0; i < strfn.ac - 1; i++) {
-            fprintf(fnfd, "double %s, ", local_ids[i + num_vars]);
+            fprintf(fdlist.fnfd, "double %s, ", local_ids[i + num_vars]);
         }
-        fprintf(fnfd, "double %s) {\n", local_ids[num_locids - 1]);
+        fprintf(fdlist.fnfd, "double %s) {\n", local_ids[num_locids - 1]);
     } else {
-        fprintf(fnfd, ") {\n");
+        fprintf(fdlist.fnfd, ") {\n");
     }
 
     char buf[BUFSIZ];
     // used to track if the function has a return statement
     bool ret = false;
-    while (fgets(buf, sizeof buf, infd) != NULL) {
+    struct fds fnfdlist = {.infd = fdlist.infd, .varfd = fdlist.fnfd, .mainfd = fdlist.fnfd, .fnfd = NULL};
+
+    while (fgets(buf, sizeof buf, fdlist.infd) != NULL) {
         line_count++;
         // leave the function if the next line doesn't start with a tab
         if (buf[0] != '\t') {
             // return 0.0 by default if the function doesn't have a return statement
             if (!ret)
-                fprintf(fnfd, "return 0.0;\n");
-            fprintf(fnfd, "}\n\n");
-            procline(buf, vars, &num_vars, infd, varfd, mainfd, fnfd);
+                fprintf(fdlist.fnfd, "return 0.0;\n");
+            fprintf(fdlist.fnfd, "}\n\n");
+            procline(buf, vars, &num_vars, fdlist);
             return;
         }
 
         if (!strncmp(buf, "\treturn ", 8)) {
             ret = true;
-            handle_exp(buf + 8, local_ids, &num_locids, fnfd);
-            fprintf(fnfd, "return %s;\n", buf + 8);
+            handle_exp(buf + 8, local_ids, &num_locids, fdlist.fnfd);
+            fprintf(fdlist.fnfd, "return %s;\n", buf + 8);
             continue;
         }
 
         // passing NULL for fnfd to indicate that we are inside a function
-        procline(buf, local_ids, &num_locids, infd, fnfd, fnfd, NULL);
+        procline(buf, local_ids, &num_locids, fnfdlist);
     }
 
-    fprintf(fnfd, "}\n\n");
+    fprintf(fdlist.fnfd, "}\n\n");
 }
 
-void procfile(char* filename, FILE* varfd, FILE* mainfd, FILE* fnfd)
+void procfile(struct fds fdlist)
 {
-    FILE* infd = fopen(filename, "r");
     char line[BUFSIZ];
 
-    while (fgets(line, sizeof line, infd) != NULL) {
+    while (fgets(line, sizeof line, fdlist.infd) != NULL) {
         line_count++;
-        procline(line, vars, &num_vars, infd, varfd, mainfd, fnfd);
+        procline(line, vars, &num_vars, fdlist);
     }
 }
 
-FILE* init_vars(char* varpath, int ac, char** av)
+struct fds init_fds(char* inpath, char* varpath, char* mainpath, char* fnpath, int argc, char** argv)
 {
-    FILE* varfd = fopen(varpath, "w");
-    fputs("#include <stdio.h>\n\n", varfd);
+    struct fds fdlist;
+    fdlist.infd = fopen(inpath, "r");
+    fdlist.varfd = fopen(varpath, "w");
+    fdlist.mainfd = fopen(mainpath, "w");
+    fdlist.fnfd = fopen(fnpath, "w");
 
-    for (int i = 0; i < ac; i++) {
+    fputs("#include <stdio.h>\n\n", fdlist.varfd);
+
+    for (int i = 0; i < argc; i++) {
         char* endptr;
         errno = 0;
-        strtod(av[i], &endptr);
+        strtod(argv[i], &endptr);
         if (errno != 0 || *endptr != '\0') {
-            fprintf(stderr, "!Argument '%s' is not a real number", av[i]);
+            fprintf(stderr, "!Argument '%s' is not a real number", argv[i]);
             exit(EXIT_FAILURE);
         }
 
         char* var_name = malloc(1024);
-        fprintf(varfd, "double arg%d = %s;\n", i, av[i]);
+        fprintf(fdlist.varfd, "double arg%d = %s;\n", i, argv[i]);
         snprintf(var_name, 1024, "arg%d", i);
         vars[num_vars++] = var_name;
     }
 
-    fputs("double __val__;\n", varfd);
-
-    return varfd;
+    fputs("double __val__;\n", fdlist.varfd);
+    fputs("int main() {\n", fdlist.mainfd);
+    return fdlist;
 }
 
-FILE* init_main(char* mainpath)
+void close_fds(struct fds fdlist)
 {
-    FILE* mainfd = fopen(mainpath, "w");
-
-    fputs("int main() {\n", mainfd);
-    return mainfd;
-}
-
-void close_main(FILE* mainfd)
-{
-    fputs("}\n", mainfd);
-    fclose(mainfd);
+    fputs("}\n", fdlist.mainfd);
+    fclose(fdlist.infd);
+    fclose(fdlist.varfd);
+    fclose(fdlist.mainfd);
+    fclose(fdlist.fnfd);
 }
 
 void merge_files(char* varpath, char* mainpath, char* fnpath, char* outpath)
@@ -533,7 +540,6 @@ void runml(char* filename)
     int pid = fork();
 
     if (pid == 0) {
-        // TODO remove -Wall flag before submitting
         char* args[] = { "cc", "-Wall", "-o", binpath, filename, NULL };
         execvp(args[0], args);
     } else {
@@ -568,15 +574,9 @@ int main(int argc, char* argv[])
     char fnpath[1024];
     sprintf(fnpath, "ml-%d-fn.c", pid);
 
-    FILE* varfd = init_vars(varpath, argc - 2, &argv[2]);
-    FILE* mainfd = init_main(mainpath);
-    FILE* fnfd = fopen(fnpath, "w");
-
-    procfile(argv[1], varfd, mainfd, fnfd);
-
-    fclose(varfd);
-    close_main(mainfd);
-    fclose(fnfd);
+    struct fds fdlist = init_fds(argv[1], varpath, mainpath, fnpath, argc - 2, &argv[2]);
+    procfile(fdlist);
+    close_fds(fdlist);
 
     char outpath[1024];
     sprintf(outpath, "ml-%d.c", pid);
