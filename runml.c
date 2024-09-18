@@ -207,8 +207,14 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
 
 void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
 {
-
     line = strip(line);
+
+    if (!strcmp(line, "")) {
+        // Assumming expressions are valid, handle_exp() would be called with an
+        // empty string if and only if an expression was expected but not received
+        fprintf(stderr, "!Expression expected at line %d", line_count);
+        exit(EXIT_FAILURE);
+    }
 
     for (int i = 0; i < (int)strlen(line); i++) {
         if (line[i] == '(') {
