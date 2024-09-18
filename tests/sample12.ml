@@ -1,5 +1,5 @@
 # Define a function to calculate the area of a rectangle
-function rectanglearea length width
+function rectarea length width
 	area <- length * width
 	return area
 #
@@ -19,8 +19,8 @@ function complexops a b c
 # Calculate the area of a rectangle
 rectlength <- 5.0
 rectwidth  <- 10.0
-rectarea   <- rectanglearea( rectlength , rectwidth )
-print rectarea   # Expected: 50.0 (5.0 * 10.0)
+rarea   <- rectarea( rectlength , rectwidth )
+print rarea   # Expected: 50.0 (5.0 * 10.0)
 #
 # Calculate the area of a circle
 circradius <- 3.0
@@ -29,8 +29,8 @@ print circarea    # Expected: 28.27431 (3.14159 * 3.0 * 3.0)
 #
 # More complex assignments
 valuea  <- 7.0
-valueb  <- rectanglearea( 2.0, 3.0 ) + 4.0 / 2.0
-# rectanglearea(2.0, 3.0) = 6.0 -> 6.0 + 4.0 / 2.0 = 6.0 + 2.0 = 8.0
+valueb  <- rectarea( 2.0, 3.0 ) + 4.0 / 2.0
+# rectarea(2.0, 3.0) = 6.0 -> 6.0 + 4.0 / 2.0 = 6.0 + 2.0 = 8.0
 valuec  <- circarea - 5.0 * 2.0
 # circarea = 28.27431 -> 28.27431 - (5.0 * 2.0) = 28.27431 - 10.0 = 18.27431
 result  <- complexops( valuea , valueb , valuec )
@@ -38,7 +38,7 @@ result  <- complexops( valuea , valueb , valuec )
 print result     # Expected: 270.61465
 #
 # Final calculation with nested function calls
-finalresult <- complexops( rectanglearea(4.0, 5.0) , circlearea(2.0) , 3.0 )
-# rectanglearea(4.0, 5.0) = 20.0, circlearea(2.0) = 12.56636
+finalresult <- complexops( rectarea(4.0, 5.0) , circlearea(2.0) , 3.0 )
+# rectarea(4.0, 5.0) = 20.0, circlearea(2.0) = 12.56636
 # (20.0 + 12.56636) * 3.0 - (20.0 / 2.0) = 32.56636 * 3.0 - 10.0 = 97.69908 - 10.0 = 87.69908
 print finalresult   # Expected: 87.69908

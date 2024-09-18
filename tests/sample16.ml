@@ -1,6 +1,6 @@
 # Function does not return anything
-function no_return
+function noreturn
 	x <- 5
 	print x
 #
-print no_return()
+print noreturn()

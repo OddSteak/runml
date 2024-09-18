@@ -107,7 +107,7 @@ bool is_arg(char* name)
 }
 
 // fail if the variable name is invalid
-void validate_ids(char* name)
+void validate_id(char* name)
 {
     if (is_arg(name)) {
         fprintf(stderr, "!identifiers of the form arg<number> are reserved for arguments\n");
@@ -202,7 +202,8 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
         }
     }
 
-    fprintf(stderr, "!function '%s' is not defined", fn_name);
+    fprintf(stderr, "!function '%s' is not defined\n", fn_name);
+    exit(EXIT_FAILURE);
 }
 
 void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
@@ -254,7 +255,7 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
 
     // if strtod failed, we can assume it's an identifier
     if ((errno != 0 || *endptr != '\0') && !is_defined(line, var_arr, *size)) {
-        validate_ids(line);
+        validate_id(line);
         char* var_name = malloc(strlen(line) + 1);
         strcpy(var_name, line);
         var_arr[(*size)++] = var_name;
@@ -291,7 +292,7 @@ void handle_assignment(char* line, char* var_arr[], int* size, FILE* varfd, FILE
     var_name = strip(var_name);
     var_val = strip(var_val);
 
-    validate_ids(var_name);
+    validate_id(var_name);
 
     handle_exp(var_val, var_arr, size, varfd);
     if (!is_defined(var_name, var_arr, *size)) {
@@ -349,6 +350,7 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
     }
 
     char* fnname = strtok(line, " ");
+    validate_id(fnname);
     strfn.name = malloc(strlen(fnname) + 1);
     strcpy(strfn.name, fnname);
 
@@ -368,6 +370,7 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
         char* param = malloc(strlen(buf) + 1);
         strcpy(param, buf);
         param = strip(param);
+        validate_id(param);
 
         if (is_defined(param, local_ids, num_locids)) {
             fprintf(stderr, "!parameter name is already defined '%s'\n", param);

@@ -1,25 +1,25 @@
 new <- 8.999
 print new
 #
-function fn1
+function fnr
 	r <- 901
 	rt <- 1
 	print rt + r
 #
-fn1()
+fnr()
 #
-function fn2 a
+function fnt a
 	r <- 901
 	rt <- 1
 	print rt + r * rty + a
 	#
 	print rty
 #
-fn2(4)
+fnt(4)
 #
-function fn3 a
+function fny a
 	r <- 901
 	rt <- 1
 	return rt + r * rty + a
 #
-print 4 + fn3(4)
+print 4 + fny(4)
