@@ -29,4 +29,8 @@ print localvar          # Expected: 0.0, same as above
 #
 # Test undeclared variable use in an expression
 newvar <- newvar + 5.0  # newvar is undeclared, so it should default to 0.0
-print newvar            # Expected: 5.0 (0.0 + 5.0)
+# test if functions can modify global variables
+function modloc
+    newvar <- newvar + 5
+modloc ()
+print newvar            # Expected: 10 (0.0 + 5.0 + 5)
