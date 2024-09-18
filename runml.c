@@ -262,13 +262,13 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
     }
 }
 
-void handle_print(char* line, char* var_arr[], int* size, FILE* outfd)
+void handle_print(char* line, char* var_arr[], int* size, FILE* mainfd, FILE* varfd)
 {
-    handle_exp(line, var_arr, size, outfd);
-    fprintf(outfd, "__val__ = %s;\n", line);
-    fprintf(outfd, "if (__val__ == (int)(__val__))\n");
-    fprintf(outfd, "\tprintf(\"%%.0lf\\n\", __val__);\n");
-    fprintf(outfd, "else\n\tprintf(\"%%.6lf\\n\", __val__);\n\n");
+    handle_exp(line, var_arr, size, varfd);
+    fprintf(mainfd, "__val__ = %s;\n", line);
+    fprintf(mainfd, "if (__val__ == (int)(__val__))\n");
+    fprintf(mainfd, "\tprintf(\"%%.0lf\\n\", __val__);\n");
+    fprintf(mainfd, "else\n\tprintf(\"%%.6lf\\n\", __val__);\n\n");
 }
 
 void handle_assignment(char* line, char* var_arr[], int* size, FILE* varfd, FILE* mainfd)
@@ -321,7 +321,7 @@ void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, F
     if (strstr(line, "<-") != NULL) {
         handle_assignment(line, var_arr, size, varfd, mainfd);
     } else if (strncmp(line, "print ", 6) == 0) {
-        handle_print(line + 6, var_arr, size, mainfd);
+        handle_print(line + 6, var_arr, size, mainfd, varfd);
     } else if (strncmp(line, "function ", 9) == 0) {
         if (fnfd == NULL) {
             fprintf(stderr, "!nested functions are not allowed\n");
