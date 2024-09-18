@@ -6,6 +6,7 @@
 // Importing all the the libraries we need
 #include <ctype.h>
 #include <errno.h>
+#include <linux/limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +17,7 @@
 // TODO delete the generated files before exit_failures before submitting
 // TODO global line count for error messages
 // TODO remove magic numbers
+// TODO throw error on fn and var names clashing (both ways)
 // maximum Identifiers a the program will have is 50
 #define MAX_ID 50
 
@@ -126,10 +128,21 @@ void validate_id(char* name)
 }
 
 // return true if the identifier name is defined in the list of identifiers var_arr
-bool is_defined(char* name, char* var_arr[], int size)
+bool is_var_defined(char* name, char* var_arr[], int size)
 {
     for (int i = 0; i < size; i++) {
         if (strcmp(var_arr[i], name) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool is_fn_defined(char* name)
+{
+    for (int i = 0; i < num_fns; i++) {
+        if (strcmp(fn_list[i].name, name) == 0) {
             return true;
         }
     }
@@ -254,7 +267,11 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
     strtod(line, &endptr);
 
     // if strtod failed, we can assume it's an identifier
-    if ((errno != 0 || *endptr != '\0') && !is_defined(line, var_arr, *size)) {
+    if ((errno != 0 || *endptr != '\0') && !is_var_defined(line, var_arr, *size)) {
+        if (is_fn_defined(line)) {
+            fprintf(stderr, "!ERROR: line %d - identifier already defined as a function '%s'", line_count, line);
+            exit(EXIT_FAILURE);
+        }
         validate_id(line);
         char* var_name = malloc(strlen(line) + 1);
         strcpy(var_name, line);
@@ -263,7 +280,7 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
     }
 }
 
-void handle_print(char* line, char* var_arr[], int* size, FILE* mainfd, FILE* varfd)
+void handle_print(char* line, char* var_arr[], int* size, FILE* varfd, FILE* mainfd)
 {
     handle_exp(line, var_arr, size, varfd);
     fprintf(mainfd, "__val__ = %s;\n", line);
@@ -295,7 +312,11 @@ void handle_assignment(char* line, char* var_arr[], int* size, FILE* varfd, FILE
     validate_id(var_name);
 
     handle_exp(var_val, var_arr, size, varfd);
-    if (!is_defined(var_name, var_arr, *size)) {
+    if (!is_var_defined(var_name, var_arr, *size)) {
+        if (is_fn_defined(var_name)) {
+            fprintf(stderr, "!ERROR: line %d - identifier already defined as a function '%s'", line_count, var_name);
+            exit(EXIT_FAILURE);
+        }
         var_arr[(*size)++] = var_name;
         fprintf(varfd, "double %s;\n", var_name);
     }
@@ -322,7 +343,7 @@ void procline(char* line, char* var_arr[], int* size, FILE* infd, FILE* varfd, F
     if (strstr(line, "<-") != NULL) {
         handle_assignment(line, var_arr, size, varfd, mainfd);
     } else if (strncmp(line, "print ", 6) == 0) {
-        handle_print(line + 6, var_arr, size, mainfd, varfd);
+        handle_print(line + 6, var_arr, size, varfd, mainfd);
     } else if (strncmp(line, "function ", 9) == 0) {
         if (fnfd == NULL) {
             fprintf(stderr, "!nested functions are not allowed\n");
@@ -354,11 +375,9 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
     strfn.name = malloc(strlen(fnname) + 1);
     strcpy(strfn.name, fnname);
 
-    for (int i = 0; i < num_fns; i++) {
-        if (!strcmp(fn_list[i].name, strfn.name)) {
-            fprintf(stderr, "!function '%s' is already defined\n", strfn.name);
-            exit(EXIT_FAILURE);
-        }
+    if (is_fn_defined(fnname) || is_var_defined(fnname, vars, num_vars)) {
+        fprintf(stderr, "!ERROR: line %d - An identifier with name '%s' is already defined\n", line_count, strfn.name);
+        exit(EXIT_FAILURE);
     }
 
     while (true) {
@@ -372,8 +391,8 @@ void handle_fndef(char* line, FILE* infd, FILE* varfd, FILE* mainfd, FILE* fnfd)
         param = strip(param);
         validate_id(param);
 
-        if (is_defined(param, local_ids, num_locids)) {
-            fprintf(stderr, "!parameter name is already defined '%s'\n", param);
+        if (is_var_defined(param, local_ids, num_locids) || is_fn_defined(param)) {
+            fprintf(stderr, "!ERROR: line %d - An identifier with name '%s' is already defined\n", line_count, param);
             exit(EXIT_FAILURE);
         }
 

@@ -5,6 +5,7 @@
 - tab character at the start of the line is only allowed in functions
 - over indentation is allowed
 - names of the form arg<number> cannot be reassigned or used as new identifiers even if they are not supplied
-    - *Reason*: usage of the names indicate that the programmer was expecting an argument to be supplied and we should throw an error if that's not the case
+    - **Reason**: usage of the names indicate that the programmer was expecting an argument to be supplied and we should throw an error if that's not the case
 - functions must be defined before they are called and the number of arguments must be at least equal to the number of parameters defined in the function definition
 - reassignment of all variables (including function arguments) except the command line arguments is allowed
+- function parameter names must be unique and cannot override global variables
