@@ -12,13 +12,10 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <stdarg.h>
 
-// TODO delete the generated files before exit_failures before submitting
 // maximum Identifiers the program will have is 50
 #define MAX_ID 50
-
-// track global line count for error messages
-int line_count = 0;
 
 // defines the stucture of fn which hold the name and the number of aruments a function has will use these to process functions
 struct fn {
@@ -32,6 +29,18 @@ struct fds {
     FILE* mainfd;
     FILE* fnfd;
 };
+
+// track global line count for error messages
+int line_count = 0;
+// structure to hold the names of generated files
+struct fpaths {
+    char* inputpath;
+    char* varpath;
+    char* mainpath;
+    char* fnpath;
+    char* cpath;
+    char* binpath;
+} genfiles;
 
 // fn_list is a list of the stuctures for function so we can track them
 // num_fns is used to track the number of function we have in the program
@@ -58,9 +67,12 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd);
 void handle_fndef(char* line, struct fds fdlist);
 void procline(char* line, char* var_arr[], int* size, struct fds fdlist);
 void procfile(struct fds fdlist);
-struct fds init_fds(char* inpath, char* varpath, char* mainpath, char* fnpath, int argc, char** argv);
-void merge_files(struct fds fdlist, char* outpath);
-void runml(char* filename, char* binpath);
+struct fds init_fds(int argc, char** argv);
+void merge_files(struct fds fdlist);
+void runml();
+void error_and_clean(char* format, ...);
+void clean_files();
+void init_paths(char* inputpath);
 
 // strip function removes the leading and trailing whitespaces
 char* strip(char* line)
@@ -117,20 +129,15 @@ bool is_arg(char* name)
 // fail if the variable name is invalid
 void validate_id(char* name)
 {
-    if (is_arg(name)) {
-        fprintf(stderr, "!identifiers of the form arg<number> are reserved for arguments\n");
-        exit(EXIT_FAILURE);
-    }
-    if (!strcmp(name, "function") || !strcmp(name, "print") || !strcmp(name, "return")) {
-        fprintf(stderr, "!reserved keyword '%s' cannot be used as an identifier name\n", name);
-        exit(EXIT_FAILURE);
-    }
-    for (int i = 0; i < (int)strlen(name); i++) {
-        if (!islower(name[i]) || i == 12) {
-            fprintf(stderr, "!Identifier name '%s' is invalid\n", name);
-            exit(EXIT_FAILURE);
-        }
-    }
+    if (is_arg(name))
+        error_and_clean("!identifiers of the form arg<number> are reserved for arguments\n");
+
+    if (!strcmp(name, "function") || !strcmp(name, "print") || !strcmp(name, "return"))
+        error_and_clean("!reserved keyword '%s' cannot be used as an identifier name\n", name);
+
+    for (int i = 0; i < (int)strlen(name); i++)
+        if (!islower(name[i]) || i == 12)
+            error_and_clean("!Identifier name '%s' is invalid\n", name);
 }
 
 // return true if the identifier name is defined in the list of identifiers var_arr
@@ -160,10 +167,9 @@ int resolve_bracket(char* string)
     int cl_brack = 0;
     int i = 1;
     while (op_brack != cl_brack) {
-        if (i >= (int)strlen(string)) {
-            fprintf(stderr, "!brackets are invalid on line %d\n", line_count);
-            exit(EXIT_FAILURE);
-        }
+        if (i >= (int)strlen(string))
+            error_and_clean("!brackets are invalid on line %d\n", line_count);
+
         if (string[i] == '(') {
             op_brack = op_brack + 1;
         } else if (string[i] == ')') {
@@ -178,12 +184,10 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
 {
     line = strip(line);
 
-    if (!strcmp(line, "")) {
+    if (!strcmp(line, ""))
         // Assumming the expressions are valid, handle_exp() would be called with an
         // empty string if and only if an expression was expected but not received
-        fprintf(stderr, "!Expression expected at line %d", line_count);
-        exit(EXIT_FAILURE);
-    }
+        error_and_clean("!Expression expected at line %d", line_count);
 
     for (int i = 0; i < (int)strlen(line); i++) {
         if (line[i] == '(') {
@@ -223,10 +227,8 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
 
     // if strtod failed, we can assume it's an identifier
     if ((errno != 0 || *endptr != '\0') && !is_var_defined(line, var_arr, *size)) {
-        if (is_fn_defined(line)) {
-            fprintf(stderr, "!ERROR: line %d - identifier already defined as a function '%s'", line_count, line);
-            exit(EXIT_FAILURE);
-        }
+        if (is_fn_defined(line))
+            error_and_clean("!line %d - identifier already defined as a function '%s'", line_count, line);
         validate_id(line);
         char* var_name = malloc(strlen(line) + 1);
         strcpy(var_name, line);
@@ -255,10 +257,8 @@ void handle_assignment(char* line, char* var_arr[], int* size, struct fds fdlist
     char* var_val = token + strlen(delim);
 
     // invalid syntax if we have multiple arrows
-    if (strstr(var_val, delim) != NULL) {
-        fprintf(stderr, "!Line: %d - multiple arrows in assignment statement\n", line_count);
-        exit(EXIT_FAILURE);
-    }
+    if (strstr(var_val, delim) != NULL)
+        error_and_clean("!Line: %d - multiple arrows in assignment statement\n", line_count);
 
     var_name = strip(var_name);
     var_val = strip(var_val);
@@ -267,10 +267,9 @@ void handle_assignment(char* line, char* var_arr[], int* size, struct fds fdlist
 
     // if it's a new variable we need to declare it first
     if (!is_var_defined(var_name, var_arr, *size)) {
-        if (is_fn_defined(var_name)) {
-            fprintf(stderr, "!ERROR: line %d - identifier already defined as a function '%s'", line_count, var_name);
-            exit(EXIT_FAILURE);
-        }
+        if (is_fn_defined(var_name))
+            error_and_clean("!line %d - identifier already defined as a function '%s'", line_count, var_name);
+
         var_arr[(*size)++] = var_name;
         fprintf(fdlist.varfd, "double %s;\n", var_name);
     }
@@ -286,10 +285,8 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
 
     // handle_exp confirms it's a function call before calling handle_fncalls and we can't recognize the statement if
     // called with procline and it's not a funciton call
-    if (opbrack == 0 || opbrack == (int)strlen(line) || resolve_bracket(line + opbrack) != (int)strlen(line + opbrack) - 1) {
-        fprintf(stderr, "!Syntax ERROR: unrecognized statement on line %d\n", line_count);
-        exit(EXIT_FAILURE);
-    }
+    if (opbrack == 0 || opbrack == (int)strlen(line) || resolve_bracket(line + opbrack) != (int)strlen(line + opbrack) - 1)
+        error_and_clean("!Syntax ERROR: unrecognized statement on line %d\n", line_count);
 
     // copying line to another buffer because we want to modify it
     char call[strlen(line) + 1];
@@ -320,10 +317,9 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
 
                     // empty argument is only allowed if no arguments are passed
                     if (!strcmp(strip(exp), "")) {
-                        if (args != 0 || strcmp(strip(call + exp_start), "")) {
-                            fprintf(stderr, "!Line %d - empty argument in function call '%s'\n", line_count, call);
-                            exit(EXIT_FAILURE);
-                        }
+                        if (args != 0 || strcmp(strip(call + exp_start), ""))
+                            error_and_clean("!Line %d - empty argument in function call '%s'\n", line_count, call);
+
                         break;
                     }
 
@@ -333,16 +329,14 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
                 }
             }
 
-            if (args < fn_ac) {
-                fprintf(stderr, "!Line %d - expected at least %d arguments in function call '%s'\n", line_count, fn_ac, line);
-                exit(EXIT_FAILURE);
-            }
+            if (args < fn_ac)
+                error_and_clean("!Line %d - expected at least %d arguments in function call '%s'\n", line_count, fn_ac, line);
+
             return;
         }
     }
 
-    fprintf(stderr, "!Line %d - function '%s' is not defined\n", line_count, fn_name);
-    exit(EXIT_FAILURE);
+    error_and_clean("!Line %d - function '%s' is not defined\n", line_count, fn_name);
 }
 
 void handle_fndef(char* line, struct fds fdlist)
@@ -360,8 +354,7 @@ void handle_fndef(char* line, struct fds fdlist)
     strcpy(strfn.name, fnname);
 
     if (is_fn_defined(fnname) || is_var_defined(fnname, vars, num_vars)) {
-        fprintf(stderr, "!Line %d - An identifier with name '%s' is already defined\n", line_count, strfn.name);
-        exit(EXIT_FAILURE);
+        error_and_clean("!Line %d - An identifier with name '%s' is already defined\n", line_count, strfn.name);
     }
 
     while (true) {
@@ -374,10 +367,8 @@ void handle_fndef(char* line, struct fds fdlist)
         param = strip(param);
         validate_id(param);
 
-        if (is_var_defined(param, local_ids, num_locids) || is_fn_defined(param)) {
-            fprintf(stderr, "!line %d - An identifier with name '%s' is already defined\n", line_count, param);
-            exit(EXIT_FAILURE);
-        }
+        if (is_var_defined(param, local_ids, num_locids) || is_fn_defined(param))
+            error_and_clean("!line %d - An identifier with name '%s' is already defined\n", line_count, param);
 
         local_ids[num_locids++] = param;
     }
@@ -429,14 +420,12 @@ void handle_fndef(char* line, struct fds fdlist)
 
 void procline(char* line, char* var_arr[], int* size, struct fds fdlist)
 {
-    if (line[0] == '\t' && fdlist.fnfd != NULL) {
-        fprintf(stderr, "!Line %d - statement outside a function definition is indented\n", line_count);
-        exit(EXIT_FAILURE);
-    }
-    if (!strcmp(strip(line), "")) {
-        fprintf(stderr, "!Line %d is empty", line_count);
-        exit(EXIT_FAILURE);
-    }
+    if (line[0] == '\t' && fdlist.fnfd != NULL)
+        error_and_clean("!Line %d - statement outside a function definition is indented\n", line_count);
+
+    if (!strcmp(strip(line), ""))
+        error_and_clean("!Line %d is empty", line_count);
+
     line = preprocess(line);
     if (!strcmp(line, ""))
         return;
@@ -446,14 +435,12 @@ void procline(char* line, char* var_arr[], int* size, struct fds fdlist)
     } else if (strncmp(line, "print ", 6) == 0) {
         handle_print(line + 6, var_arr, size, fdlist);
     } else if (strncmp(line, "function ", 9) == 0) {
-        if (fdlist.fnfd == NULL) {
-            fprintf(stderr, "!line %d - nested functions are not allowed\n", line_count);
-            exit(EXIT_FAILURE);
-        }
+        if (fdlist.fnfd == NULL)
+            error_and_clean("!line %d - nested functions are not allowed\n", line_count);
+
         handle_fndef(line + 9, fdlist);
     } else if (strncmp(line, "return ", 7) == 0) {
-        fprintf(stderr, "!line %d - return statement is not allowed outside function definition\n", line_count);
-        exit(EXIT_FAILURE);
+        error_and_clean("!line %d - return statement is not allowed outside function definition\n", line_count);
     } else {
         handle_fncalls(line, var_arr, size, fdlist.varfd);
         fprintf(fdlist.mainfd, "%s;\n", line);
@@ -470,13 +457,13 @@ void procfile(struct fds fdlist)
     }
 }
 
-struct fds init_fds(char* inpath, char* varpath, char* mainpath, char* fnpath, int argc, char** argv)
+struct fds init_fds(int argc, char** argv)
 {
     struct fds fdlist;
-    fdlist.infd = fopen(inpath, "r");
-    fdlist.varfd = fopen(varpath, "w+");
-    fdlist.mainfd = fopen(mainpath, "w+");
-    fdlist.fnfd = fopen(fnpath, "w+");
+    fdlist.infd = fopen(genfiles.inputpath, "r");
+    fdlist.varfd = fopen(genfiles.varpath, "w+");
+    fdlist.mainfd = fopen(genfiles.mainpath, "w+");
+    fdlist.fnfd = fopen(genfiles.fnpath, "w+");
 
     fputs("#include <stdio.h>\n\n", fdlist.varfd);
 
@@ -484,10 +471,8 @@ struct fds init_fds(char* inpath, char* varpath, char* mainpath, char* fnpath, i
         char* endptr;
         errno = 0;
         strtod(argv[i], &endptr);
-        if (errno != 0 || *endptr != '\0' || (int)strlen(argv[i]) > 1023) {
-            fprintf(stderr, "!Argument '%s' is not a real number or is too long", argv[i]);
-            exit(EXIT_FAILURE);
-        }
+        if (errno != 0 || *endptr != '\0' || (int)strlen(argv[i]) > 1023)
+            error_and_clean("!Argument '%s' is not a real number or is too long", argv[i]);
 
         char* var_name = malloc(1024);
         fprintf(fdlist.varfd, "double arg%d = %s;\n", i, argv[i]);
@@ -500,13 +485,13 @@ struct fds init_fds(char* inpath, char* varpath, char* mainpath, char* fnpath, i
     return fdlist;
 }
 
-void merge_files(struct fds fdlist, char* outpath)
+void merge_files(struct fds fdlist)
 {
     fputs("}\n", fdlist.mainfd);
     rewind(fdlist.varfd);
     rewind(fdlist.mainfd);
     rewind(fdlist.fnfd);
-    FILE* outfd = fopen(outpath, "w");
+    FILE* outfd = fopen(genfiles.cpath, "w");
 
     char buf[BUFSIZ];
 
@@ -530,11 +515,11 @@ void merge_files(struct fds fdlist, char* outpath)
     fclose(outfd);
 }
 
-void runml(char* filename, char* binpath)
+void runml()
 {
     int pid = fork();
     if (pid == 0) {
-        char* args[] = { "cc", "-Wall", "-o", binpath, filename, NULL };
+        char* args[] = { "cc", "-Wall", "-o", genfiles.binpath, genfiles.cpath, NULL };
         execvp(args[0], args);
     } else {
         wait(&pid);
@@ -542,11 +527,50 @@ void runml(char* filename, char* binpath)
 
     pid = fork();
     if (pid == 0) {
-        char* args[] = { binpath, NULL };
+        char* args[] = { genfiles.binpath, NULL };
         execvp(args[0], args);
     } else {
         wait(&pid);
     }
+}
+
+// print error message, clean the generated files and exit
+void error_and_clean(char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+
+    vfprintf(stderr, format, args);
+    clean_files();
+    exit(EXIT_FAILURE);
+}
+
+// clean the generated files
+void clean_files()
+{
+    unlink(genfiles.varpath);
+    unlink(genfiles.mainpath);
+    unlink(genfiles.fnpath);
+    unlink(genfiles.cpath);
+    unlink(genfiles.binpath);
+}
+
+// initialize the global struct of filenames
+void init_paths(char* inputpath)
+{
+    int pid = getpid();
+    genfiles.inputpath = inputpath;
+    genfiles.varpath = malloc(1024);
+    genfiles.mainpath = malloc(1024);
+    genfiles.fnpath = malloc(1024);
+    genfiles.cpath = malloc(1024);
+    genfiles.binpath = malloc(1024);
+
+    sprintf(genfiles.varpath, "ml-%d-vars.c", pid);
+    sprintf(genfiles.mainpath, "ml-%d-main.c", pid);
+    sprintf(genfiles.fnpath, "ml-%d-fn.c", pid);
+    sprintf(genfiles.cpath, "ml-%d.c", pid);
+    sprintf(genfiles.binpath, "./ml-%d", pid);
 }
 
 // our program takes the file name and optional command line arguments
@@ -557,28 +581,11 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    int pid = getpid();
-    char varpath[1024];
-    char mainpath[1024];
-    char fnpath[1024];
-    char outpath[1024];
-    char binpath[1024];
-
-    sprintf(varpath, "ml-%d-vars.c", pid);
-    sprintf(mainpath, "ml-%d-main.c", pid);
-    sprintf(fnpath, "ml-%d-fn.c", pid);
-    sprintf(outpath, "ml-%d.c", pid);
-    sprintf(binpath, "./ml-%d", pid);
-
-    struct fds fdlist = init_fds(argv[1], varpath, mainpath, fnpath, argc - 2, &argv[2]);
+    init_paths(argv[1]);
+    struct fds fdlist = init_fds(argc - 2, &argv[2]);
     procfile(fdlist);
 
-    merge_files(fdlist, outpath);
-    runml(outpath, binpath);
-
-    unlink(varpath);
-    unlink(mainpath);
-    unlink(fnpath);
-    unlink(outpath);
-    unlink(binpath);
+    merge_files(fdlist);
+    runml();
+    clean_files();
 }
