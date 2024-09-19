@@ -33,14 +33,14 @@ struct fds {
 // track global line count for error messages
 int line_count = 0;
 // structure to hold the names of generated files
-struct fpaths {
+struct {
     char* inputpath;
     char* varpath;
     char* mainpath;
     char* fnpath;
     char* cpath;
     char* binpath;
-} genfiles;
+} fpaths;
 
 // fn_list is a list of the stuctures for function so we can track them
 // num_fns is used to track the number of function we have in the program
@@ -460,10 +460,10 @@ void procfile(struct fds fdlist)
 struct fds init_fds(int argc, char** argv)
 {
     struct fds fdlist;
-    fdlist.infd = fopen(genfiles.inputpath, "r");
-    fdlist.varfd = fopen(genfiles.varpath, "w+");
-    fdlist.mainfd = fopen(genfiles.mainpath, "w+");
-    fdlist.fnfd = fopen(genfiles.fnpath, "w+");
+    fdlist.infd = fopen(fpaths.inputpath, "r");
+    fdlist.varfd = fopen(fpaths.varpath, "w+");
+    fdlist.mainfd = fopen(fpaths.mainpath, "w+");
+    fdlist.fnfd = fopen(fpaths.fnpath, "w+");
 
     fputs("#include <stdio.h>\n\n", fdlist.varfd);
 
@@ -491,7 +491,7 @@ void merge_files(struct fds fdlist)
     rewind(fdlist.varfd);
     rewind(fdlist.mainfd);
     rewind(fdlist.fnfd);
-    FILE* outfd = fopen(genfiles.cpath, "w");
+    FILE* outfd = fopen(fpaths.cpath, "w");
 
     char buf[BUFSIZ];
 
@@ -519,7 +519,7 @@ void runml()
 {
     int pid = fork();
     if (pid == 0) {
-        char* args[] = { "cc", "-Wall", "-o", genfiles.binpath, genfiles.cpath, NULL };
+        char* args[] = { "cc", "-Wall", "-o", fpaths.binpath, fpaths.cpath, NULL };
         execvp(args[0], args);
     } else {
         wait(&pid);
@@ -527,7 +527,7 @@ void runml()
 
     pid = fork();
     if (pid == 0) {
-        char* args[] = { genfiles.binpath, NULL };
+        char* args[] = { fpaths.binpath, NULL };
         execvp(args[0], args);
     } else {
         wait(&pid);
@@ -548,29 +548,29 @@ void error_and_clean(char* format, ...)
 // clean the generated files
 void clean_files()
 {
-    unlink(genfiles.varpath);
-    unlink(genfiles.mainpath);
-    unlink(genfiles.fnpath);
-    unlink(genfiles.cpath);
-    unlink(genfiles.binpath);
+    unlink(fpaths.varpath);
+    unlink(fpaths.mainpath);
+    unlink(fpaths.fnpath);
+    unlink(fpaths.cpath);
+    unlink(fpaths.binpath);
 }
 
 // initialize the global struct of filenames
 void init_paths(char* inputpath)
 {
     int pid = getpid();
-    genfiles.inputpath = inputpath;
-    genfiles.varpath = malloc(1024);
-    genfiles.mainpath = malloc(1024);
-    genfiles.fnpath = malloc(1024);
-    genfiles.cpath = malloc(1024);
-    genfiles.binpath = malloc(1024);
+    fpaths.inputpath = inputpath;
+    fpaths.varpath = malloc(1024);
+    fpaths.mainpath = malloc(1024);
+    fpaths.fnpath = malloc(1024);
+    fpaths.cpath = malloc(1024);
+    fpaths.binpath = malloc(1024);
 
-    sprintf(genfiles.varpath, "ml-%d-vars.c", pid);
-    sprintf(genfiles.mainpath, "ml-%d-main.c", pid);
-    sprintf(genfiles.fnpath, "ml-%d-fn.c", pid);
-    sprintf(genfiles.cpath, "ml-%d.c", pid);
-    sprintf(genfiles.binpath, "./ml-%d", pid);
+    sprintf(fpaths.varpath, "ml-%d-vars.c", pid);
+    sprintf(fpaths.mainpath, "ml-%d-main.c", pid);
+    sprintf(fpaths.fnpath, "ml-%d-fn.c", pid);
+    sprintf(fpaths.cpath, "ml-%d.c", pid);
+    sprintf(fpaths.binpath, "./ml-%d", pid);
 }
 
 // our program takes the file name and optional command line arguments
