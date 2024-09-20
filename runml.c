@@ -474,7 +474,7 @@ struct fds init_fds(int argc, char** argv)
         errno = 0;
         strtod(argv[i], &endptr);
         if (errno != 0 || *endptr != '\0' || (int)strlen(argv[i]) > 1023)
-            error_and_clean("!Argument '%s' is not a real number or is too long", argv[i]);
+            error_and_clean("!Argument '%s' is not a real number or is too long\n", argv[i]);
 
         char* var_name = malloc(1024);
         fprintf(fdlist.varfd, "double arg%d = %s;\n", i, argv[i]);
