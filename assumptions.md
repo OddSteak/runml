@@ -1,8 +1,8 @@
 # Assumptions
 
-- whitespace is allowed everywhere
+- extra spaces are allowed everywhere
 - empty lines are not allowed
-- tab character at the start of the line is only allowed in functions
+- tab character at the start of the line is only allowed in function body
 - over indentation is allowed
 - names of the form arg<number> cannot be reassigned or used as new identifiers even if they are not supplied
     - **Reason**: usage of the names indicate that the programmer was expecting an argument to be supplied and we should throw an error if that's not the case
@@ -13,10 +13,14 @@
 - There are no semi-colans in the file
 - No meaningful code is written on the # line once the "#" appears
 - Assuming statements are wriiten one per line
-- Assuming there are no random semi colans\
-- Assuming the function should be terminated when:
-    - when brackets are in validate_id
-    - when resurved words are used to name functions such as:
+
+- behavior is undefined if -
+    - a reserved C11 keyword is used as an identifier
+    - the number of unique identifiers exceeds 50
+
+- Assuming our program should be terminated when:
+    - identifier name is invalid
+    - when reserved words are used to name functions such as:
         function
         print
         arg<number>

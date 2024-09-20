@@ -3,16 +3,15 @@
 //  Student2:   STUDENT-23895849   NAME-Baasil Sidiqui
 //  Platform:   Linux
 
-#include <ctype.h>
-#include <errno.h>
-#include <linux/limits.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
+#include <ctype.h>
+#include <errno.h>
+#include <stdarg.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <stdarg.h>
 
 // maximum Identifiers the program will have is 50
 #define MAX_ID 50
@@ -111,9 +110,8 @@ char* preprocess(char* line)
 // returns true if the name is of the form arg<number>
 bool is_arg(char* name)
 {
-    if (strncmp(name, "arg", strlen("arg")) || strlen(name) <= strlen("arg")) {
+    if (strncmp(name, "arg", strlen("arg")) || strlen(name) <= strlen("arg"))
         return false;
-    }
 
     char* endptr = name + 3;
     errno = 0;
@@ -140,7 +138,7 @@ void validate_id(char* name)
             error_and_clean("!Identifier name '%s' is invalid\n", name);
 }
 
-// return true if the identifier name is defined in the list of identifiers var_arr
+// return true if the identifier name is defined in the array names var_arr
 bool is_var_defined(char* name, char* var_arr[], int size)
 {
     for (int i = 0; i < size; i++)
@@ -192,6 +190,7 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
     for (int i = 0; i < (int)strlen(line); i++) {
         if (line[i] == '(') {
             int close = i + resolve_bracket(line + i);
+
             if (i == 0 && close == (int)strlen(line) - 1) {
                 // everything is within the bracket
                 char cont[close];
@@ -200,32 +199,34 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
                 handle_exp(cont, var_arr, size, varfd);
                 return;
             } else if (close == (int)strlen(line) - 1) {
-                // this is fucntion call since the opening brack doesn't
-                // start at 0 but ends at the end
+                // this is function call since the opening bracket doesn't start at 0 but ends at the end
                 handle_fncalls(line, var_arr, size, varfd);
                 return;
             }
 
-            // otherwise we will simply move the pointer to the closing brack
+            // otherwise we will simply move the pointer to the closing bracket
             i = close + 1;
         } else if (line[i] == '+' || line[i] == '-' || line[i] == '*' || line[i] == '/') {
+            // splitting at the operators
             char first_part[i + 1];
             strncpy(first_part, line, i);
             first_part[i] = 0;
+            char* second_part = line + i + 1;
 
             // we know line + i + 1 is a valid address these operators can't be at the end
             // assuming the expressions are valid
             handle_exp(first_part, var_arr, size, varfd);
-            handle_exp(line + i + 1, var_arr, size, varfd);
+            handle_exp(second_part, var_arr, size, varfd);
             return;
         }
     }
 
+    // there are no operators or brackets in the expression so it's either a real number or an identifier
     char* endptr;
     errno = 0;
     strtod(line, &endptr);
 
-    // if strtod failed, we can assume it's an identifier
+    // if strtod failed, we can assume it's an identifier, we don't need to do anything if it's a real number
     if ((errno != 0 || *endptr != '\0') && !is_var_defined(line, var_arr, *size)) {
         if (is_fn_defined(line))
             error_and_clean("!line %d - identifier already defined as a function '%s'", line_count, line);
@@ -284,7 +285,7 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
             break;
 
     // handle_exp confirms it's a function call before calling handle_fncalls and we can't recognize the statement if
-    // called with procline and it's not a funciton call
+    // called with procline and it's not a function call
     if (opbrack == 0 || opbrack == (int)strlen(line) || resolve_bracket(line + opbrack) != (int)strlen(line + opbrack) - 1)
         error_and_clean("!Syntax ERROR: unrecognized statement on line %d\n", line_count);
 
@@ -353,9 +354,8 @@ void handle_fndef(char* line, struct fds fdlist)
     strfn.name = malloc(strlen(fnname) + 1);
     strcpy(strfn.name, fnname);
 
-    if (is_fn_defined(fnname) || is_var_defined(fnname, vars, num_vars)) {
+    if (is_fn_defined(fnname) || is_var_defined(fnname, vars, num_vars))
         error_and_clean("!Line %d - An identifier with name '%s' is already defined\n", line_count, strfn.name);
-    }
 
     while (true) {
         char* buf = strtok(NULL, " ");
@@ -427,7 +427,7 @@ void procline(char* line, char* var_arr[], int* size, struct fds fdlist)
         error_and_clean("!Line %d is empty", line_count);
 
     line = preprocess(line);
-    if (!strcmp(line, ""))
+    if (!strcmp(line, "")) // must be a comment because we already checked for empty lines
         return;
 
     if (strstr(line, "<-") != NULL) {
@@ -440,7 +440,8 @@ void procline(char* line, char* var_arr[], int* size, struct fds fdlist)
 
         handle_fndef(line + 9, fdlist);
     } else if (strncmp(line, "return ", 7) == 0) {
-        error_and_clean("!line %d - return statement is not allowed outside function definition\n", line_count);
+		// return statements are handled by handle_fndef so we must be outside function body
+        error_and_clean("!line %d - return statement is not allowed outside function body\n", line_count);
     } else {
         handle_fncalls(line, var_arr, size, fdlist.varfd);
         fprintf(fdlist.mainfd, "%s;\n", line);
@@ -468,6 +469,7 @@ struct fds init_fds(int argc, char** argv)
     fputs("#include <stdio.h>\n\n", fdlist.varfd);
 
     for (int i = 0; i < argc; i++) {
+		// check if all the areguments are real numbers and define them as variables in the translated c file
         char* endptr;
         errno = 0;
         strtod(argv[i], &endptr);
@@ -480,6 +482,7 @@ struct fds init_fds(int argc, char** argv)
         vars[num_vars++] = var_name;
     }
 
+	// we will use __val__ variable for print statements to ensure that integers are printed without decimal places
     fputs("double __val__;\n", fdlist.varfd);
     fputs("int main(void) {\n", fdlist.mainfd);
     return fdlist;
@@ -519,7 +522,7 @@ void runml()
 {
     int pid = fork();
     if (pid == 0) {
-        char* args[] = { "cc", "-Wall", "-o", fpaths.binpath, fpaths.cpath, NULL };
+        char* args[] = { "cc", "-std=c11", "-o", fpaths.binpath, fpaths.cpath, NULL };
         execvp(args[0], args);
     } else {
         wait(&pid);
@@ -577,7 +580,7 @@ void init_paths(char* inputpath)
 int main(int argc, char* argv[])
 {
     if (argc < 2) {
-        fprintf(stderr, "!Usage: runml input-file [arguments]...\n");
+        fprintf(stderr, "!Usage: runml input-file [argument]...\n");
         exit(EXIT_FAILURE);
     }
 
