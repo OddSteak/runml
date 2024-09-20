@@ -15,6 +15,8 @@
 
 // maximum Identifiers the program will have is 50
 #define MAX_ID 50
+// highest possible process id is 32768 in linux
+#define MAX_PROCESS_ID_LENGTH 5
 
 // defines the stucture of fn which hold the name and the number of aruments a function has will use these to process functions
 struct fn {
@@ -185,7 +187,7 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
     if (!strcmp(line, ""))
         // Assumming the expressions are valid, handle_exp() would be called with an
         // empty string if and only if an expression was expected but not received
-        error_and_clean("!Expression expected at line %d", line_count);
+        error_and_clean("!Expression expected at line %d\n", line_count);
 
     for (int i = 0; i < (int)strlen(line); i++) {
         if (line[i] == '(') {
@@ -229,7 +231,7 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
     // if strtod failed, we can assume it's an identifier, we don't need to do anything if it's a real number
     if ((errno != 0 || *endptr != '\0') && !is_var_defined(line, var_arr, *size)) {
         if (is_fn_defined(line))
-            error_and_clean("!line %d - identifier already defined as a function '%s'", line_count, line);
+            error_and_clean("!line %d - identifier already defined as a function '%s'\n", line_count, line);
         validate_id(line);
         char* var_name = malloc(strlen(line) + 1);
         strcpy(var_name, line);
@@ -269,7 +271,7 @@ void handle_assignment(char* line, char* var_arr[], int* size, struct fds fdlist
     // if it's a new variable we need to declare it first
     if (!is_var_defined(var_name, var_arr, *size)) {
         if (is_fn_defined(var_name))
-            error_and_clean("!line %d - identifier already defined as a function '%s'", line_count, var_name);
+            error_and_clean("!line %d - identifier already defined as a function '%s'\n", line_count, var_name);
 
         var_arr[(*size)++] = var_name;
         fprintf(fdlist.varfd, "double %s;\n", var_name);
@@ -424,7 +426,7 @@ void procline(char* line, char* var_arr[], int* size, struct fds fdlist)
         error_and_clean("!Line %d - statement outside a function definition is indented\n", line_count);
 
     if (!strcmp(strip(line), ""))
-        error_and_clean("!Line %d is empty", line_count);
+        error_and_clean("!Line %d is empty\n", line_count);
 
     line = preprocess(line);
     if (!strcmp(line, "")) // must be a comment because we already checked for empty lines
@@ -468,17 +470,20 @@ struct fds init_fds(int argc, char** argv)
 
     fputs("#include <stdio.h>\n\n", fdlist.varfd);
 
+    if (argc > 50)
+        error_and_clean("!Number of arguments must be less than 50\n");
+
     for (int i = 0; i < argc; i++) {
 		// check if all the areguments are real numbers and define them as variables in the translated c file
         char* endptr;
         errno = 0;
         strtod(argv[i], &endptr);
-        if (errno != 0 || *endptr != '\0' || (int)strlen(argv[i]) > 1023)
+        if (errno != 0 || *endptr != '\0')
             error_and_clean("!Argument '%s' is not a real number or is too long\n", argv[i]);
 
-        char* var_name = malloc(1024);
+        char* var_name = malloc(strlen("arg") + 11 + 1);
         fprintf(fdlist.varfd, "double arg%d = %s;\n", i, argv[i]);
-        snprintf(var_name, 1024, "arg%d", i);
+        snprintf(var_name, strlen("arg") + 11 + 1, "arg%d", i);
         vars[num_vars++] = var_name;
     }
 
@@ -563,11 +568,11 @@ void init_paths(char* inputpath)
 {
     int pid = getpid();
     fpaths.inputpath = inputpath;
-    fpaths.varpath = malloc(1024);
-    fpaths.mainpath = malloc(1024);
-    fpaths.fnpath = malloc(1024);
-    fpaths.cpath = malloc(1024);
-    fpaths.binpath = malloc(1024);
+    fpaths.varpath = malloc(MAX_PROCESS_ID_LENGTH + strlen("ml--vars.c") + 1);
+    fpaths.mainpath = malloc(MAX_PROCESS_ID_LENGTH + strlen("ml--main.c") + 1);
+    fpaths.fnpath = malloc(MAX_PROCESS_ID_LENGTH + strlen("ml--fn.c") + 1);
+    fpaths.cpath = malloc(MAX_PROCESS_ID_LENGTH + strlen("ml-.c") + 1);
+    fpaths.binpath = malloc(MAX_PROCESS_ID_LENGTH + strlen("./ml-") + 1);
 
     sprintf(fpaths.varpath, "ml-%d-vars.c", pid);
     sprintf(fpaths.mainpath, "ml-%d-main.c", pid);

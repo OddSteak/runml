@@ -12,19 +12,21 @@
 - Assuming statements are wriiten one per line
 
 - behavior is undefined if -
+    - a real number is outside the range defined in data type double in c
     - a reserved C11 keyword is used as an identifier
     - If an invalid expression is used
-    - the number of unique identifiers exceeds 50
+    - the number of unique identifiers (including command line arguments) exceeds 50
 
 - Assuming our program should be terminated when:
     - identifier name is invalid
-    - when reserved keywords are used to name functions such as:
+    - a reserved keyword is used to name identifiers such as:
         function
         print
         arg<number>
     - functions is not defined before it is called or the number of arguments is less than the number of parameters defined in the function definition
+    - an expression was expected but not received
     - there are any syntax errors in the code such as more than one "<-" in assignment statement
     - if a line outside function definition is indented
-    - if a function is tried to be defined more than once or the function name clashes with variable name
+    - A function is defined more than once or the function name clashes with a variable name
     - if there is a semicolon or any other unexpected symbols in the file
-    - if argument is not a valid real number
+    - if any command line argument is not a valid real number
