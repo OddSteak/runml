@@ -17,6 +17,7 @@
 #define MAX_ID 50
 // highest possible process id is 32768 in linux
 #define MAX_PROCESS_ID_LENGTH 5
+#define MAX_NUMBER_LEN 11
 
 // defines the stucture of fn which hold the name and the number of aruments a function has will use these to process functions
 struct fn {
@@ -180,6 +181,7 @@ int resolve_bracket(char* string)
     return i - 1;
 }
 
+// handles expressions
 void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
 {
     line = strip(line);
@@ -240,6 +242,7 @@ void handle_exp(char* line, char* var_arr[], int* size, FILE* varfd)
     }
 }
 
+// handle print statements
 void handle_print(char* line, char* var_arr[], int* size, struct fds fdlist)
 {
     handle_exp(line, var_arr, size, fdlist.varfd);
@@ -249,6 +252,7 @@ void handle_print(char* line, char* var_arr[], int* size, struct fds fdlist)
     fprintf(fdlist.mainfd, "else\n\tprintf(\"%%.6lf\\n\", __val__);\n\n");
 }
 
+// handle assignment statements
 void handle_assignment(char* line, char* var_arr[], int* size, struct fds fdlist)
 {
     const char* delim = "<-";
@@ -279,6 +283,7 @@ void handle_assignment(char* line, char* var_arr[], int* size, struct fds fdlist
     fprintf(fdlist.mainfd, "%s = %s;\n", var_name, var_val);
 }
 
+// handles function calls
 void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
 {
     int opbrack;
@@ -342,6 +347,7 @@ void handle_fncalls(char* line, char* var_arr[], int* size, FILE* varfd)
     error_and_clean("!Line %d - function '%s' is not defined\n", line_count, fn_name);
 }
 
+// handles function definitions
 void handle_fndef(char* line, struct fds fdlist)
 {
     struct fn strfn;
@@ -420,6 +426,7 @@ void handle_fndef(char* line, struct fds fdlist)
     fprintf(fdlist.fnfd, "}\n\n");
 }
 
+// determines type of statement and calls the appropriate functions
 void procline(char* line, char* var_arr[], int* size, struct fds fdlist)
 {
     if (line[0] == '\t' && fdlist.fnfd != NULL)
@@ -450,6 +457,7 @@ void procline(char* line, char* var_arr[], int* size, struct fds fdlist)
     }
 }
 
+// process file
 void procfile(struct fds fdlist)
 {
     char line[BUFSIZ];
@@ -460,6 +468,7 @@ void procfile(struct fds fdlist)
     }
 }
 
+// initialized the files and returns file descriptors struct
 struct fds init_fds(int argc, char** argv)
 {
     struct fds fdlist;
@@ -479,11 +488,11 @@ struct fds init_fds(int argc, char** argv)
         errno = 0;
         strtod(argv[i], &endptr);
         if (errno != 0 || *endptr != '\0')
-            error_and_clean("!Argument '%s' is not a real number or is too long\n", argv[i]);
+            error_and_clean("!Argument '%s' is not a real number or is too high\n", argv[i]);
 
-        char* var_name = malloc(strlen("arg") + 11 + 1);
+        char* var_name = malloc(strlen("arg") + MAX_NUMBER_LEN + 1);
         fprintf(fdlist.varfd, "double arg%d = %s;\n", i, argv[i]);
-        snprintf(var_name, strlen("arg") + 11 + 1, "arg%d", i);
+        snprintf(var_name, strlen("arg") + MAX_NUMBER_LEN + 1, "arg%d", i);
         vars[num_vars++] = var_name;
     }
 
@@ -493,6 +502,7 @@ struct fds init_fds(int argc, char** argv)
     return fdlist;
 }
 
+// merges the files to the final c file
 void merge_files(struct fds fdlist)
 {
     fputs("}\n", fdlist.mainfd);
@@ -523,6 +533,7 @@ void merge_files(struct fds fdlist)
     fclose(outfd);
 }
 
+// compiles and runs the translated c file
 void runml()
 {
     int pid = fork();

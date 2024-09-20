@@ -12,7 +12,7 @@
 - Assuming statements are wriiten one per line
 
 - behavior is undefined if -
-    - a real number is outside the range defined in data type double in c
+    - a real number is outside the range defined in the data type double in c
     - a reserved C11 keyword is used as an identifier
     - If an invalid expression is used
     - the number of unique identifiers (including command line arguments) exceeds 50
